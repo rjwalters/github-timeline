@@ -2,6 +2,8 @@
 
 A 3D visualization tool for exploring Git repository evolution over time. Watch your codebase grow, change, and evolve with an interactive force-directed graph showing files and directories as connected nodes in 3D space.
 
+🌐 **[Live Demo](https://rjwalters.github.io/repo-timeline/)**
+
 ## Features
 
 - **3D Force-Directed Graph**: Files and directories are visualized as nodes connected by springs, creating an organic, physics-based layout
@@ -20,6 +22,8 @@ A 3D visualization tool for exploring Git repository evolution over time. Watch 
 - **React Three Fiber**: React renderer for Three.js
 - **React Three Drei**: Useful helpers for R3F
 - **Tailwind CSS**: Utility-first styling
+- **Biome**: Fast linter and formatter
+- **pnpm**: Efficient package manager
 - **Simple Git**: Git integration (backend)
 
 ## Getting Started
@@ -27,13 +31,13 @@ A 3D visualization tool for exploring Git repository evolution over time. Watch 
 ### Installation
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Development
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open your browser to `http://localhost:5173`
@@ -41,13 +45,20 @@ Open your browser to `http://localhost:5173`
 ### Build
 
 ```bash
-npm run build
+pnpm build
+```
+
+### Lint
+
+```bash
+pnpm lint
+pnpm lint:fix  # Auto-fix issues
 ```
 
 ### Preview Production Build
 
 ```bash
-npm run preview
+pnpm preview
 ```
 
 ## Project Structure
