@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GitService, LoadProgress } from "../services/gitService";
 import { CommitData, FileNode } from "../types";
@@ -11,9 +11,10 @@ import {
 
 interface RepoTimelineProps {
 	repoPath: string;
+	onBack?: () => void;
 }
 
-export function RepoTimeline({ repoPath }: RepoTimelineProps) {
+export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 	const [commits, setCommits] = useState<CommitData[]>([]);
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [loading, setLoading] = useState(true);
@@ -212,13 +213,24 @@ export function RepoTimeline({ repoPath }: RepoTimelineProps) {
 							</div>
 						)}
 					</div>
-					<button
-						onClick={() => loadCommits(true)}
-						className="p-2 hover:bg-gray-800 rounded transition-colors"
-						title="Refresh data"
-					>
-						<RefreshCw size={20} />
-					</button>
+					<div className="flex gap-2">
+						{onBack && (
+							<button
+								onClick={onBack}
+								className="p-2 hover:bg-gray-800 rounded transition-colors"
+								title="Back to repo selection"
+							>
+								<ArrowLeft size={20} />
+							</button>
+						)}
+						<button
+							onClick={() => loadCommits(true)}
+							className="p-2 hover:bg-gray-800 rounded transition-colors"
+							title="Refresh data"
+						>
+							<RefreshCw size={20} />
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

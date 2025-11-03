@@ -1,4 +1,5 @@
 import { CommitData, FileEdge, FileNode } from "../types";
+import { GitHubApiService } from "./githubApiService";
 import { StorageService } from "./storageService";
 
 interface RawCommitData {
@@ -81,6 +82,20 @@ export class GitService {
 	private async fetchCommitsWithProgress(
 		onProgress?: (progress: LoadProgress) => void,
 	): Promise<CommitData[]> {
+		// Check if repoPath is in GitHub format (owner/repo)
+		if (/^[^/]+\/[^/]+$/.test(this.repoPath)) {
+			console.log(`Fetching from GitHub API: ${this.repoPath}`);
+			try {
+				const githubService = new GitHubApiService(this.repoPath);
+				const commits = await githubService.buildTimelineFromPRs(onProgress);
+				return this.calculateSizeChanges(commits);
+			} catch (error) {
+				console.error("GitHub API error:", error);
+				throw error;
+			}
+		}
+
+		// Try backend API (legacy support)
 		try {
 			const response = await fetch(
 				`/api/commits?path=${encodeURIComponent(this.repoPath)}`,

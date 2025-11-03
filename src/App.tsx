@@ -1,17 +1,18 @@
+import { useState } from "react";
+import { RepoInput } from "./components/RepoInput";
 import { RepoTimeline } from "./components/RepoTimeline";
 import "./index.css";
 
 function App() {
-	// For now, use a demo path - in production, this could come from:
-	// - User input
-	// - URL parameter
-	// - File system API
-	// - Backend API
-	const repoPath = "/demo/repo";
+	const [repoPath, setRepoPath] = useState<string | null>(null);
 
 	return (
 		<div className="w-screen h-screen">
-			<RepoTimeline repoPath={repoPath} />
+			{repoPath ? (
+				<RepoTimeline repoPath={repoPath} onBack={() => setRepoPath(null)} />
+			) : (
+				<RepoInput onSubmit={setRepoPath} />
+			)}
 		</div>
 	);
 }
