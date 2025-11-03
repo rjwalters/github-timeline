@@ -1,6 +1,6 @@
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TEST_MODE, WORKER_URL } from "../config";
+import type { RepoTimelineProps } from "../lib/types";
 import type { RateLimitInfo } from "../services/githubApiService";
 import { GitService, LoadProgress } from "../services/gitService";
 import { CommitData, FileEdge, FileNode } from "../types";
@@ -12,12 +12,19 @@ import {
 	TimelineScrubber,
 } from "./TimelineScrubber";
 
-interface RepoTimelineProps {
-	repoPath: string;
-	onBack?: () => void;
-}
+// TEST MODE: Set to true to bypass loading and show test scene
+const TEST_MODE = false;
 
-export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
+export function RepoTimeline({
+	repoPath,
+	workerUrl,
+	onBack,
+	showControls = true,
+	autoPlay = false,
+	playbackSpeed: initialPlaybackSpeed = 60,
+	playbackDirection: initialPlaybackDirection = "forward",
+	onError,
+}: RepoTimelineProps) {
 	const [commits, setCommits] = useState<CommitData[]>([]);
 	const [currentTime, setCurrentTime] = useState<number>(0); // Timestamp in ms
 	const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({
@@ -31,10 +38,11 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [selectedNode, setSelectedNode] = useState<FileNode | null>(null);
 	const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
-	const [isPlaying, setIsPlaying] = useState(false);
-	const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(60);
+	const [isPlaying, setIsPlaying] = useState(autoPlay);
+	const [playbackSpeed, setPlaybackSpeed] =
+		useState<PlaybackSpeed>(initialPlaybackSpeed);
 	const [playbackDirection, setPlaybackDirection] =
-		useState<PlaybackDirection>("forward");
+		useState<PlaybackDirection>(initialPlaybackDirection);
 	const [fromCache, setFromCache] = useState(false);
 	const [rateLimitedCache, setRateLimitedCache] = useState(false);
 	const playbackTimerRef = useRef<number | null>(null);
@@ -58,7 +66,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 	useEffect(() => {
 		const loadMetadata = async () => {
 			try {
-				const gitService = new GitService(repoPath, undefined, WORKER_URL);
+				const gitService = new GitService(repoPath, undefined, workerUrl);
 				const metadata = await gitService.getMetadata();
 
 				setTotalPRs(metadata.prs.length);
@@ -82,7 +90,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 			const gitService = new GitService(
 				repoPath,
 				undefined, // No token needed - using worker
-				WORKER_URL,
+				workerUrl,
 			);
 			gitServiceRef.current = gitService;
 
@@ -107,12 +115,15 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 					setRateLimit(gitService.getRateLimitInfo());
 				} catch (err) {
 					console.error("Error loading commits:", err);
-					setError(
-						err instanceof Error ? err.message : "Failed to load repository",
-					);
+					const error =
+						err instanceof Error ? err : new Error("Failed to load repository");
+					setError(error.message);
 					setLoading(false);
 					setRateLimitedCache(false);
 					setRateLimit(gitService.getRateLimitInfo());
+					if (onError) {
+						onError(error);
+					}
 				}
 			} else {
 				// Incremental loading - show visualization as data arrives
@@ -177,7 +188,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 				}
 			}
 		},
-		[repoPath],
+		[repoPath, workerUrl],
 	);
 
 	useEffect(() => {
@@ -376,18 +387,20 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 			</div>
 
 			{/* Timeline Controls */}
-			<TimelineScrubber
-				commits={commits}
-				currentTime={currentTime}
-				onTimeChange={setCurrentTime}
-				timeRange={timeRange}
-				isPlaying={isPlaying}
-				onPlayPause={handlePlayPause}
-				playbackSpeed={playbackSpeed}
-				onSpeedChange={setPlaybackSpeed}
-				playbackDirection={playbackDirection}
-				onDirectionChange={setPlaybackDirection}
-			/>
+			{showControls && (
+				<TimelineScrubber
+					commits={commits}
+					currentTime={currentTime}
+					onTimeChange={setCurrentTime}
+					timeRange={timeRange}
+					isPlaying={isPlaying}
+					onPlayPause={handlePlayPause}
+					playbackSpeed={playbackSpeed}
+					onSpeedChange={setPlaybackSpeed}
+					playbackDirection={playbackDirection}
+					onDirectionChange={setPlaybackDirection}
+				/>
+			)}
 
 			{/* Node Info Panel */}
 			{selectedNode && (
