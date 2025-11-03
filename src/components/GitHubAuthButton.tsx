@@ -1,4 +1,4 @@
-import { KeyRound, LogOut, Loader2 } from "lucide-react";
+import { KeyRound, Loader2, LogOut } from "lucide-react";
 import { useState } from "react";
 import { GitHubAuthService } from "../services/githubAuthService";
 

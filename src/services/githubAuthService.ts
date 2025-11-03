@@ -104,7 +104,9 @@ export class GitHubAuthService {
 						throw new Error("Authorization was denied.");
 					}
 
-					throw new Error(`OAuth error: ${data.error_description || data.error}`);
+					throw new Error(
+						`OAuth error: ${data.error_description || data.error}`,
+					);
 				}
 
 				// Success! We got the token

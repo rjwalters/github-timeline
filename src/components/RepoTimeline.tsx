@@ -191,7 +191,9 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 			<div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
 				<div className="text-center max-w-2xl px-8">
 					<div className="text-xl mb-4 text-red-400">
-						{isRateLimitError ? "⚠️ GitHub API Rate Limit Exceeded" : "Error Loading Repository"}
+						{isRateLimitError
+							? "⚠️ GitHub API Rate Limit Exceeded"
+							: "Error Loading Repository"}
 					</div>
 					<div className="text-gray-300 mb-4">{error}</div>
 					<div className="text-sm text-gray-500 mb-6">
@@ -204,7 +206,8 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 								💡 Add a GitHub Token
 							</div>
 							<div className="text-sm text-gray-300 mb-3">
-								Authenticated requests have a limit of 5,000/hour instead of 60/hour.
+								Authenticated requests have a limit of 5,000/hour instead of
+								60/hour.
 							</div>
 							<GitHubAuthButton
 								currentToken={githubToken}
