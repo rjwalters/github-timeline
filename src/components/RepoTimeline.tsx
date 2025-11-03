@@ -19,6 +19,9 @@ interface RepoTimelineProps {
 	onBack?: () => void;
 }
 
+// TEST MODE: Set to true to bypass loading and show test scene
+const TEST_MODE = false;
+
 export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 	const [commits, setCommits] = useState<CommitData[]>([]);
 	const [currentTime, setCurrentTime] = useState<number>(0); // Timestamp in ms
@@ -27,14 +30,14 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 		end: Date.now(),
 	});
 	const [_totalPRs, setTotalPRs] = useState<number>(0);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(TEST_MODE ? false : true);
 	const [backgroundLoading, setBackgroundLoading] = useState(false);
 	const [loadProgress, setLoadProgress] = useState<LoadProgress | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedNode, setSelectedNode] = useState<FileNode | null>(null);
 	const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
 	const [isPlaying, setIsPlaying] = useState(false);
-	const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+	const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(60);
 	const [playbackDirection, setPlaybackDirection] =
 		useState<PlaybackDirection>("forward");
 	const [fromCache, setFromCache] = useState(false);
@@ -192,12 +195,10 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 			// Update every 100ms for smooth playback
 			const updateInterval = 100;
 			// Time increment per update (in ms of repo time)
-			// At 1x: advance 1 day per second = 86400000ms / 1000ms = 86400ms per update
+			// At 1x: real time - 1 second of repo time per 1 second of real time
+			// Update every 100ms means we advance 100ms of repo time at 1x
 			// At higher speeds, multiply accordingly
-			const totalRepoTimeMs = timeRange.end - timeRange.start;
-			// Let's say 1x speed = entire timeline in 60 seconds
-			const timeIncrement =
-				(totalRepoTimeMs / 60000) * updateInterval * playbackSpeed;
+			const timeIncrement = updateInterval * playbackSpeed;
 
 			playbackTimerRef.current = setInterval(() => {
 				setCurrentTime((prevTime) => {
@@ -338,6 +339,20 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 		);
 	}
 
+	// TEST DATA: Hardcoded test data to debug edge rendering
+	const testNodes: FileNode[] = [
+		{ id: "src", path: "src", name: "src", size: 0, type: "directory", x: 0, y: 0, z: 0 },
+		{ id: "src/main.ts", path: "src/main.ts", name: "main.ts", size: 1000, type: "file", x: 30, y: 0, z: 0 },
+		{ id: "src/utils", path: "src/utils", name: "utils", size: 0, type: "directory", x: 0, y: 30, z: 0 },
+		{ id: "src/utils/helper.ts", path: "src/utils/helper.ts", name: "helper.ts", size: 500, type: "file", x: 30, y: 30, z: 0 },
+	];
+
+	const testEdges: FileEdge[] = [
+		{ source: "src", target: "src/main.ts", type: "parent" },
+		{ source: "src", target: "src/utils", type: "parent" },
+		{ source: "src/utils", target: "src/utils/helper.ts", type: "parent" },
+	];
+
 	// Show empty state while waiting for first commit
 	const currentCommit =
 		commits.length > 0
@@ -351,13 +366,16 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 					edges: [],
 				};
 
+	const displayNodes = TEST_MODE ? testNodes : currentCommit.files;
+	const displayEdges = TEST_MODE ? testEdges : currentCommit.edges;
+
 	return (
 		<div className="w-full h-full relative">
 			{/* 3D Visualization */}
 			<div className="w-full h-full">
 				<RepoGraph3D
-					nodes={currentCommit.files}
-					edges={currentCommit.edges}
+					nodes={displayNodes}
+					edges={displayEdges}
 					onNodeClick={handleNodeClick}
 				/>
 			</div>

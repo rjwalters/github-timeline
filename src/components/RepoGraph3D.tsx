@@ -18,10 +18,29 @@ export function RepoGraph3D({ nodes, edges, onNodeClick }: RepoGraph3DProps) {
 	const simulationRef = useRef<ForceSimulation | null>(null);
 	const animationFrameRef = useRef<number>();
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const previousNodesRef = useRef<Map<string, FileNode>>(new Map());
 
 	useEffect(() => {
 		// Create a deep copy of nodes to avoid mutating props
 		const nodesCopy = nodes.map((n) => ({ ...n }));
+
+		// Preserve positions from previous state for nodes that existed before
+		const previousNodes = previousNodesRef.current;
+		let hasNewNodes = false;
+		nodesCopy.forEach((node) => {
+			const prevNode = previousNodes.get(node.id);
+			if (prevNode) {
+				// Preserve position and velocity from previous state
+				node.x = prevNode.x;
+				node.y = prevNode.y;
+				node.z = prevNode.z;
+				node.vx = prevNode.vx;
+				node.vy = prevNode.vy;
+				node.vz = prevNode.vz;
+			} else {
+				hasNewNodes = true;
+			}
+		});
 
 		// Initialize or update simulation with tuned parameters
 		simulationRef.current = new ForceSimulation(nodesCopy, edges, {
@@ -30,20 +49,28 @@ export function RepoGraph3D({ nodes, edges, onNodeClick }: RepoGraph3DProps) {
 			iterations: 500, // More iterations for better convergence
 		});
 
-		// Run simulation
+		// Run simulation - fewer iterations if we're just adjusting existing nodes
 		let iterations = 0;
-		const maxIterations = 500;
+		const maxIterations = hasNewNodes || previousNodes.size === 0 ? 500 : 200;
 
 		const simulate = () => {
 			if (!simulationRef.current || iterations >= maxIterations) {
 				if (animationFrameRef.current) {
 					cancelAnimationFrame(animationFrameRef.current);
 				}
+				// Update previous nodes reference when simulation completes
+				if (simulationRef.current) {
+					const finalNodes = simulationRef.current.getNodes();
+					previousNodesRef.current = new Map(
+						finalNodes.map((n) => [n.id, { ...n }]),
+					);
+				}
 				return;
 			}
 
 			simulationRef.current.tick();
-			setSimulationNodes([...simulationRef.current.getNodes()]);
+			const currentNodes = simulationRef.current.getNodes();
+			setSimulationNodes([...currentNodes]);
 			iterations++;
 
 			// Slow down the simulation over time for smooth convergence
@@ -68,6 +95,13 @@ export function RepoGraph3D({ nodes, edges, onNodeClick }: RepoGraph3DProps) {
 		return () => {
 			if (animationFrameRef.current) {
 				cancelAnimationFrame(animationFrameRef.current);
+			}
+			// Save final positions even if simulation is interrupted
+			if (simulationRef.current) {
+				const finalNodes = simulationRef.current.getNodes();
+				previousNodesRef.current = new Map(
+					finalNodes.map((n) => [n.id, { ...n }]),
+				);
 			}
 		};
 	}, [nodes, edges]);

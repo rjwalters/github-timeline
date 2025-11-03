@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { CommitData } from "../types";
 
-export type PlaybackSpeed = 1 | 2 | 10 | 100;
+export type PlaybackSpeed = 1 | 60 | 300 | 1800;
 export type PlaybackDirection = "forward" | "reverse";
 
 interface TimelineScrubberProps {
@@ -60,13 +60,21 @@ export function TimelineScrubber({
 
 	const handlePrevious = () => {
 		if (currentIndex > 0) {
-			onTimeChange(commits[currentIndex - 1].date.getTime());
+			// Jump to 3 seconds before the PR to see the transition animation
+			const targetTime = commits[currentIndex - 1].date.getTime();
+			const offsetTime = targetTime - 3000; // 3 seconds before
+			// Make sure we don't go before the start of the timeline
+			onTimeChange(Math.max(timeRange.start, offsetTime));
 		}
 	};
 
 	const handleNext = () => {
 		if (currentIndex < commits.length - 1) {
-			onTimeChange(commits[currentIndex + 1].date.getTime());
+			// Jump to 3 seconds before the PR to see the transition animation
+			const targetTime = commits[currentIndex + 1].date.getTime();
+			const offsetTime = targetTime - 3000; // 3 seconds before
+			// Make sure we don't go before the start of the timeline
+			onTimeChange(Math.max(timeRange.start, offsetTime));
 		}
 	};
 
@@ -79,7 +87,7 @@ export function TimelineScrubber({
 	};
 
 	const cycleSpeed = () => {
-		const speeds: PlaybackSpeed[] = [1, 2, 10, 100];
+		const speeds: PlaybackSpeed[] = [1, 60, 300, 1800];
 		const currentSpeedIndex = speeds.indexOf(playbackSpeed);
 		const nextSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
 		onSpeedChange(speeds[nextSpeedIndex]);

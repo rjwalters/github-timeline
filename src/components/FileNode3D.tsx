@@ -17,10 +17,13 @@ export function FileNode3D({ node, onClick }: FileNode3DProps) {
 	const deletionStartTime = useRef<number | null>(null);
 
 	// Calculate target radius based on LOG of file size
-	const targetRadius = Math.max(
-		2.0,
-		Math.min(15, Math.log10(node.size + 1) * 4),
-	);
+	// Directories get a fixed size, files scale with their size
+	const targetRadius = node.type === "directory"
+		? 3.0 // Fixed size for directories
+		: Math.max(
+			2.0,
+			Math.min(15, Math.log10(node.size + 1) * 4),
+		);
 
 	// Initialize animated radius
 	useEffect(() => {
@@ -41,8 +44,8 @@ export function FileNode3D({ node, onClick }: FileNode3DProps) {
 		}
 	}, [node.fileStatus, node.previousSize, targetRadius]);
 
-	// Base color based on file type
-	const baseColor = node.type === "directory" ? "#3b82f6" : "#10b981";
+	// Base color based on file type - directories bright blue, files green
+	const baseColor = node.type === "directory" ? "#60a5fa" : "#10b981";
 
 	// Determine transition color based on file status and size change
 	let transitionColor: string | null = null;
@@ -131,23 +134,43 @@ export function FileNode3D({ node, onClick }: FileNode3DProps) {
 		return null;
 	}
 
+	// Use different shapes for directories vs files
+	const isDirectory = node.type === "directory";
+
 	return (
 		<group position={[node.x || 0, node.y || 0, node.z || 0]}>
-			<Sphere
-				ref={meshRef}
-				args={[displayRadius, 16, 16]}
-				onClick={handleClick}
-			>
-				<meshStandardMaterial
-					color={finalColor}
-					emissive={finalColor}
-					emissiveIntensity={transitionOpacity > 0 ? 0.5 : 0.2}
-					roughness={0.5}
-					metalness={0.5}
-					transparent={node.fileStatus === "deleted"}
-					opacity={node.fileStatus === "deleted" ? 0.5 : 1.0}
-				/>
-			</Sphere>
+			{isDirectory ? (
+				// Directories as octahedrons (8-sided diamond shape)
+				<mesh ref={meshRef} onClick={handleClick}>
+					<octahedronGeometry args={[displayRadius, 0]} />
+					<meshStandardMaterial
+						color={finalColor}
+						emissive={finalColor}
+						emissiveIntensity={transitionOpacity > 0 ? 0.5 : 0.3}
+						roughness={0.4}
+						metalness={0.6}
+						transparent={node.fileStatus === "deleted"}
+						opacity={node.fileStatus === "deleted" ? 0.5 : 1.0}
+					/>
+				</mesh>
+			) : (
+				// Files as spheres
+				<Sphere
+					ref={meshRef}
+					args={[displayRadius, 16, 16]}
+					onClick={handleClick}
+				>
+					<meshStandardMaterial
+						color={finalColor}
+						emissive={finalColor}
+						emissiveIntensity={transitionOpacity > 0 ? 0.5 : 0.2}
+						roughness={0.5}
+						metalness={0.5}
+						transparent={node.fileStatus === "deleted"}
+						opacity={node.fileStatus === "deleted" ? 0.5 : 1.0}
+					/>
+				</Sphere>
+			)}
 			{displayRadius > 0.3 && (
 				<Text
 					position={[0, displayRadius + 1, 0]}

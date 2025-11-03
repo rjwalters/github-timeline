@@ -350,8 +350,10 @@ export class GitService {
 	private buildFileTree(files: RawFileData[]): FileNode[] {
 		const nodes: FileNode[] = [];
 		const pathMap = new Map<string, FileNode>();
+		const directoriesNeeded = new Set<string>();
+		let hasRootFiles = false;
 
-		// First pass: create all nodes
+		// First pass: create file nodes and identify needed directories
 		files.forEach((file) => {
 			const node: FileNode = {
 				id: file.path,
@@ -362,7 +364,45 @@ export class GitService {
 			};
 			nodes.push(node);
 			pathMap.set(file.path, node);
+
+			// Identify all parent directories needed
+			const pathParts = file.path.split("/");
+			if (pathParts.length === 1) {
+				hasRootFiles = true;
+			}
+			for (let i = 1; i < pathParts.length; i++) {
+				const dirPath = pathParts.slice(0, i).join("/");
+				directoriesNeeded.add(dirPath);
+			}
 		});
+
+		// Second pass: create directory nodes
+		directoriesNeeded.forEach((dirPath) => {
+			if (!pathMap.has(dirPath)) {
+				const dirNode: FileNode = {
+					id: dirPath,
+					path: dirPath,
+					name: dirPath.split("/").pop() || dirPath,
+					size: 0, // Directories have no size
+					type: "directory",
+				};
+				nodes.push(dirNode);
+				pathMap.set(dirPath, dirNode);
+			}
+		});
+
+		// Add virtual root node if there are root-level files
+		if (hasRootFiles) {
+			const rootNode: FileNode = {
+				id: "/",
+				path: "/",
+				name: "root",
+				size: 0,
+				type: "directory",
+			};
+			nodes.push(rootNode);
+			pathMap.set("/", rootNode);
+		}
 
 		return nodes;
 	}
@@ -377,7 +417,14 @@ export class GitService {
 				// Connect to parent directory
 				const parentPath = pathParts.slice(0, -1).join("/");
 				edges.push({
-					source: parentPath || "root",
+					source: parentPath,
+					target: file.path,
+					type: "parent",
+				});
+			} else {
+				// Root-level file - connect to virtual root
+				edges.push({
+					source: "/",
 					target: file.path,
 					type: "parent",
 				});
