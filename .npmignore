@@ -1,0 +1,40 @@
+# Source files
+src/
+public/
+demo-dist/
+
+# Config files
+*.config.ts
+*.config.js
+tsconfig.json
+biome.json
+tailwind.config.js
+postcss.config.js
+
+# Documentation (keep README.md, LICENSE)
+PACKAGE_PLAN.md
+PACKAGE_CONVERSION_CHECKLIST.md
+WORKER_DEPLOYMENT.md
+
+# Build artifacts
+node_modules/
+.github/
+.vscode/
+
+# Development files
+*.log
+.DS_Store
+.env*
+
+# Test files
+tests/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Worker (optional backend)
+worker/
+
+# Keep only dist/
+!dist/
