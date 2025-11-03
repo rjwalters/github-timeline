@@ -40,10 +40,49 @@ function repoDataReducer(
 	action: RepoDataAction,
 ): RepoDataState {
 	switch (action.type) {
-		case "SET_COMMITS":
+		case "SET_COMMITS": {
+			// When setting commits in bulk (e.g., from cache), update time range
+			if (action.commits.length > 0) {
+				const times = action.commits.map((c) => c.date.getTime());
+				const newTimeRange = {
+					start: Math.min(...times),
+					end: Math.max(...times),
+				};
+				const newCurrentTime =
+					state.currentTime === 0 ? newTimeRange.start : state.currentTime;
+				return {
+					...state,
+					commits: action.commits,
+					timeRange: newTimeRange,
+					currentTime: newCurrentTime,
+				};
+			}
 			return { ...state, commits: action.commits };
-		case "ADD_COMMIT":
-			return { ...state, commits: [...state.commits, action.commit] };
+		}
+		case "ADD_COMMIT": {
+			const newCommits = [...state.commits, action.commit];
+			// Auto-update time range as commits are added
+			const commitTime = action.commit.date.getTime();
+			const newTimeRange = {
+				start:
+					state.commits.length === 0
+						? commitTime
+						: Math.min(commitTime, state.timeRange.start),
+				end:
+					state.commits.length === 0
+						? commitTime
+						: Math.max(commitTime, state.timeRange.end),
+			};
+			// Set current time to first commit if not initialized
+			const newCurrentTime =
+				state.currentTime === 0 ? commitTime : state.currentTime;
+			return {
+				...state,
+				commits: newCommits,
+				timeRange: newTimeRange,
+				currentTime: newCurrentTime,
+			};
+		}
 		case "SET_CURRENT_TIME":
 			return { ...state, currentTime: action.time };
 		case "SET_TIME_RANGE":
@@ -184,6 +223,7 @@ export function useRepoData({
 						forceRefresh,
 						(commit) => {
 							// Add commit incrementally
+							// Reducer will auto-update time range and current time
 							dispatch({ type: "ADD_COMMIT", commit });
 						},
 					);

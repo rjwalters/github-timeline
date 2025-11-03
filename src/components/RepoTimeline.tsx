@@ -96,7 +96,12 @@ export function RepoTimeline({
 		);
 	}
 
-	// Show initial loading only if we have no data yet and no error
+	// Show loading state when background loading with no commits yet
+	if (commits.length === 0 && backgroundLoading) {
+		return <LoadingState loadProgress={loadProgress} fromCache={false} />;
+	}
+
+	// Show empty state only if we have no data, no error, and not loading
 	if (commits.length === 0 && !backgroundLoading && !error) {
 		return <EmptyState repoPath={repoPath} />;
 	}
