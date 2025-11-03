@@ -62,7 +62,9 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 					setRateLimit(gitService.getRateLimitInfo());
 				} catch (err) {
 					console.error("Error loading commits:", err);
-					setError(err instanceof Error ? err.message : "Failed to load repository");
+					setError(
+						err instanceof Error ? err.message : "Failed to load repository",
+					);
 					setLoading(false);
 					setRateLimit(gitService.getRateLimitInfo());
 				}
@@ -88,7 +90,9 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 					);
 				} catch (err) {
 					console.error("Error loading commits:", err);
-					setError(err instanceof Error ? err.message : "Failed to load repository");
+					setError(
+						err instanceof Error ? err.message : "Failed to load repository",
+					);
 					setRateLimit(gitService.getRateLimitInfo());
 				} finally {
 					setBackgroundLoading(false);
@@ -185,9 +189,13 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 		return (
 			<div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
 				<div className="text-center max-w-2xl px-8">
-					<div className="text-xl mb-4 text-red-400">Error Loading Repository</div>
+					<div className="text-xl mb-4 text-red-400">
+						Error Loading Repository
+					</div>
 					<div className="text-gray-300 mb-4">{error}</div>
-					<div className="text-sm text-gray-500 mb-6">Repository: {repoPath}</div>
+					<div className="text-sm text-gray-500 mb-6">
+						Repository: {repoPath}
+					</div>
 					{onBack && (
 						<button
 							onClick={onBack}
@@ -285,7 +293,9 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 						<div className="text-sm text-gray-400">{repoPath}</div>
 						<div className="flex items-center gap-3 mt-2">
 							{fromCache && !backgroundLoading && (
-								<div className="text-xs text-blue-400">📦 Loaded from cache</div>
+								<div className="text-xs text-blue-400">
+									📦 Loaded from cache
+								</div>
 							)}
 							{backgroundLoading && loadProgress && (
 								<div className="text-xs text-yellow-400 flex items-center gap-2">

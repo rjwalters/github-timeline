@@ -112,7 +112,6 @@ export class GitHubApiService {
 		}
 
 		if (!response.ok) {
-
 			if (response.status === 403 && rateLimitRemaining === "0") {
 				const resetTime = rateLimitReset
 					? new Date(Number.parseInt(rateLimitReset) * 1000)

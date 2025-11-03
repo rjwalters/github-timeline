@@ -1,8 +1,5 @@
 import { CommitData, FileEdge, FileNode } from "../types";
-import {
-	GitHubApiService,
-	type RateLimitInfo,
-} from "./githubApiService";
+import { GitHubApiService, type RateLimitInfo } from "./githubApiService";
 import { StorageService } from "./storageService";
 
 interface RawCommitData {
@@ -100,16 +97,17 @@ export class GitService {
 			console.log(`Fetching from GitHub API: ${this.repoPath}`);
 			try {
 				this.githubService = new GitHubApiService(this.repoPath, this.token);
-				const commits = await this.githubService.buildTimelineFromPRsIncremental(
-					onCommit
-						? (commit) => {
-								// Apply size change calculations incrementally
-								const calculated = this.calculateSizeChanges([commit]);
-								onCommit(calculated[0]);
-							}
-						: undefined,
-					onProgress,
-				);
+				const commits =
+					await this.githubService.buildTimelineFromPRsIncremental(
+						onCommit
+							? (commit) => {
+									// Apply size change calculations incrementally
+									const calculated = this.calculateSizeChanges([commit]);
+									onCommit(calculated[0]);
+								}
+							: undefined,
+						onProgress,
+					);
 				return this.calculateSizeChanges(commits);
 			} catch (error) {
 				console.error("GitHub API error:", error);
