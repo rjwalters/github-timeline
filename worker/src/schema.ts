@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Database schemas with Zod validation
@@ -35,7 +35,7 @@ export const PRFileSchema = z.object({
 	id: z.number().int().positive().optional(),
 	pr_id: z.number().int().positive(),
 	filename: z.string().min(1),
-	status: z.enum(['added', 'modified', 'removed', 'renamed']),
+	status: z.enum(["added", "modified", "removed", "renamed"]),
 	additions: z.number().int().nonnegative().default(0),
 	deletions: z.number().int().nonnegative().default(0),
 	previous_filename: z.string().nullable().optional(),
@@ -80,13 +80,15 @@ export const TimelineCommitSchema = z.object({
 	message: z.string(), // PR title
 	author: z.string(), // PR author
 	date: z.string(), // ISO 8601 date string
-	files: z.array(z.object({
-		id: z.string(),
-		path: z.string(),
-		name: z.string(),
-		size: z.number(),
-		type: z.literal('file'),
-	})),
+	files: z.array(
+		z.object({
+			id: z.string(),
+			path: z.string(),
+			name: z.string(),
+			size: z.number(),
+			type: z.literal("file"),
+		}),
+	),
 	edges: z.array(z.any()).default([]),
 });
 
@@ -103,8 +105,16 @@ export type CacheResponse = z.infer<typeof CacheResponseSchema>;
 
 // Request validation
 export const RepoParamsSchema = z.object({
-	owner: z.string().min(1).max(100).regex(/^[a-zA-Z0-9-]+$/),
-	repo: z.string().min(1).max(100).regex(/^[a-zA-Z0-9._-]+$/),
+	owner: z
+		.string()
+		.min(1)
+		.max(100)
+		.regex(/^[a-zA-Z0-9-]+$/),
+	repo: z
+		.string()
+		.min(1)
+		.max(100)
+		.regex(/^[a-zA-Z0-9._-]+$/),
 });
 
 export type RepoParams = z.infer<typeof RepoParamsSchema>;

@@ -8,6 +8,7 @@ export interface GitHubPR {
 		login: string;
 	};
 	files_url: string;
+	files?: GitHubPRFile[]; // Optional - included when fetched from worker
 }
 
 export interface GitHubCommit {
@@ -83,8 +84,12 @@ export class GitHubApiService {
 		const response = await fetch(url);
 
 		if (!response.ok) {
-			const error = await response.json().catch(() => ({ error: "Unknown error" }));
-			throw new Error(error.error || `Worker request failed: ${response.status}`);
+			const error = await response
+				.json()
+				.catch(() => ({ error: "Unknown error" }));
+			throw new Error(
+				error.error || `Worker request failed: ${response.status}`,
+			);
 		}
 
 		const data = await response.json();
@@ -308,7 +313,7 @@ export class GitHubApiService {
 			}
 
 			// Get files - either from worker (already included) or fetch from GitHub
-			const prFiles = (pr as any).files || (await this.fetchPRFiles(pr.number));
+			const prFiles = pr.files || (await this.fetchPRFiles(pr.number));
 
 			// Update file state
 			for (const file of prFiles) {

@@ -46,7 +46,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 			const gitService = new GitService(
 				repoPath,
 				githubToken || undefined,
-				WORKER_URL
+				WORKER_URL,
 			);
 			gitServiceRef.current = gitService;
 
@@ -106,7 +106,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 						console.log("Falling back to cached data due to error");
 						try {
 							const cachedCommits = await gitService.getCommitHistory(
-								() => {}, // no progress updates needed
+								undefined, // no progress updates needed
 								false, // don't force refresh
 							);
 							setCommits(cachedCommits);
@@ -118,10 +118,12 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 								"Using cached data due to API error:",
 								err instanceof Error ? err.message : "Unknown error",
 							);
-						} catch (cacheErr) {
+						} catch (_cacheErr) {
 							// If cache also fails, show the original error
 							setError(
-								err instanceof Error ? err.message : "Failed to load repository",
+								err instanceof Error
+									? err.message
+									: "Failed to load repository",
 							);
 							setRateLimitedCache(false);
 						}

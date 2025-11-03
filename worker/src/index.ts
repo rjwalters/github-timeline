@@ -15,9 +15,12 @@ class TokenRotator {
 	private currentIndex = 0;
 
 	constructor(tokensString: string) {
-		this.tokens = tokensString.split(',').map(t => t.trim()).filter(t => t.length > 0);
+		this.tokens = tokensString
+			.split(",")
+			.map((t) => t.trim())
+			.filter((t) => t.length > 0);
 		if (this.tokens.length === 0) {
-			throw new Error('No GitHub tokens configured');
+			throw new Error("No GitHub tokens configured");
 		}
 		console.log(`Initialized with ${this.tokens.length} GitHub token(s)`);
 	}
@@ -49,16 +52,20 @@ interface PullRequest {
 }
 
 export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+	async fetch(
+		request: Request,
+		env: Env,
+		ctx: ExecutionContext,
+	): Promise<Response> {
 		// CORS headers for browser requests
 		const corsHeaders = {
-			'Access-Control-Allow-Origin': '*',
-			'Access-Control-Allow-Methods': 'GET, OPTIONS',
-			'Access-Control-Allow-Headers': 'Content-Type',
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Methods": "GET, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type",
 		};
 
 		// Handle CORS preflight
-		if (request.method === 'OPTIONS') {
+		if (request.method === "OPTIONS") {
 			return new Response(null, { headers: corsHeaders });
 		}
 
@@ -68,21 +75,24 @@ export default {
 		const tokenRotator = new TokenRotator(env.GITHUB_TOKENS);
 
 		// Health check endpoint
-		if (url.pathname === '/health') {
-			return new Response(JSON.stringify({
-				status: 'ok',
-				tokens: tokenRotator.getTokenCount(),
-			}), {
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-			});
+		if (url.pathname === "/health") {
+			return new Response(
+				JSON.stringify({
+					status: "ok",
+					tokens: tokenRotator.getTokenCount(),
+				}),
+				{
+					headers: { ...corsHeaders, "Content-Type": "application/json" },
+				},
+			);
 		}
 
 		// API endpoint: /api/repo/:owner/:repo
-		const match = url.pathname.match(/^\/api\/repo\/([^\/]+)\/([^\/]+)$/);
+		const match = url.pathname.match(/^\/api\/repo\/([^/]+)\/([^/]+)$/);
 		if (!match) {
-			return new Response(JSON.stringify({ error: 'Invalid endpoint' }), {
+			return new Response(JSON.stringify({ error: "Invalid endpoint" }), {
 				status: 404,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+				headers: { ...corsHeaders, "Content-Type": "application/json" },
 			});
 		}
 
@@ -94,44 +104,65 @@ export default {
 			const cached = await getCachedData(env.DB, fullName);
 
 			if (cached) {
-				console.log(`Serving cached data for ${fullName} (${cached.prs.length} PRs)`);
+				console.log(
+					`Serving cached data for ${fullName} (${cached.prs.length} PRs)`,
+				);
 
 				// Trigger background update if cache is old (> 1 hour)
 				const cacheAge = Date.now() / 1000 - cached.lastUpdated;
 				if (cacheAge > 3600) {
-					console.log(`Cache is ${Math.round(cacheAge / 60)} minutes old, triggering background update`);
-					ctx.waitUntil(updateRepoData(env.DB, tokenRotator.getNextToken(), owner, repo, cached.lastPrNumber));
+					console.log(
+						`Cache is ${Math.round(cacheAge / 60)} minutes old, triggering background update`,
+					);
+					ctx.waitUntil(
+						updateRepoData(
+							env.DB,
+							tokenRotator.getNextToken(),
+							owner,
+							repo,
+							cached.lastPrNumber,
+						),
+					);
 				}
 
 				return new Response(JSON.stringify(cached.prs), {
 					headers: {
 						...corsHeaders,
-						'Content-Type': 'application/json',
-						'X-Cache': 'HIT',
-						'X-Cache-Age': Math.round(cacheAge).toString(),
+						"Content-Type": "application/json",
+						"X-Cache": "HIT",
+						"X-Cache-Age": Math.round(cacheAge).toString(),
 					},
 				});
 			}
 
 			// No cache - fetch synchronously for first request
 			console.log(`No cache for ${fullName}, fetching from GitHub`);
-			const prs = await fetchAndCacheRepo(env.DB, tokenRotator.getNextToken(), owner, repo);
+			const prs = await fetchAndCacheRepo(
+				env.DB,
+				tokenRotator.getNextToken(),
+				owner,
+				repo,
+			);
 
 			return new Response(JSON.stringify(prs), {
 				headers: {
 					...corsHeaders,
-					'Content-Type': 'application/json',
-					'X-Cache': 'MISS',
+					"Content-Type": "application/json",
+					"X-Cache": "MISS",
 				},
 			});
 		} catch (error) {
-			console.error('Error processing request:', error);
-			return new Response(JSON.stringify({
-				error: error instanceof Error ? error.message : 'Internal server error'
-			}), {
-				status: 500,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-			});
+			console.error("Error processing request:", error);
+			return new Response(
+				JSON.stringify({
+					error:
+						error instanceof Error ? error.message : "Internal server error",
+				}),
+				{
+					status: 500,
+					headers: { ...corsHeaders, "Content-Type": "application/json" },
+				},
+			);
 		}
 	},
 };
@@ -139,51 +170,65 @@ export default {
 /**
  * Get cached data from D1
  */
-async function getCachedData(db: D1Database, fullName: string): Promise<{
-	prs: any[],
-	lastUpdated: number,
-	lastPrNumber: number
+async function getCachedData(
+	db: D1Database,
+	fullName: string,
+): Promise<{
+	prs: any[];
+	lastUpdated: number;
+	lastPrNumber: number;
 } | null> {
 	// Get repo metadata
-	const repo = await db.prepare(
-		'SELECT id, last_updated, last_pr_number FROM repos WHERE full_name = ?'
-	).bind(fullName).first();
+	const repo = await db
+		.prepare(
+			"SELECT id, last_updated, last_pr_number FROM repos WHERE full_name = ?",
+		)
+		.bind(fullName)
+		.first();
 
 	if (!repo) {
 		return null;
 	}
 
 	// Get all PRs
-	const prs = await db.prepare(`
+	const prs = await db
+		.prepare(`
 		SELECT pr_number, title, author, merged_at, id
 		FROM pull_requests
 		WHERE repo_id = ?
 		ORDER BY merged_at ASC
-	`).bind(repo.id).all();
+	`)
+		.bind(repo.id)
+		.all();
 
 	if (!prs.results || prs.results.length === 0) {
 		return null;
 	}
 
 	// Transform data to match GitHub API format
-	const transformedPRs = await Promise.all(prs.results.map(async (pr: any) => {
-		// Get files for this PR
-		const filesResult = await db.prepare(`
+	const transformedPRs = await Promise.all(
+		prs.results.map(async (pr: any) => {
+			// Get files for this PR
+			const filesResult = await db
+				.prepare(`
 			SELECT filename, status, additions, deletions, previous_filename
 			FROM pr_files
 			WHERE pr_id = ?
-		`).bind(pr.id).all();
+		`)
+				.bind(pr.id)
+				.all();
 
-		const files = filesResult.results || [];
+			const files = filesResult.results || [];
 
-		return {
-			number: pr.pr_number,
-			title: pr.title,
-			user: { login: pr.author },
-			merged_at: new Date(pr.merged_at * 1000).toISOString(),
-			files: files,
-		};
-	}));
+			return {
+				number: pr.pr_number,
+				title: pr.title,
+				user: { login: pr.author },
+				merged_at: new Date(pr.merged_at * 1000).toISOString(),
+				files: files,
+			};
+		}),
+	);
 
 	return {
 		prs: transformedPRs,
@@ -199,7 +244,7 @@ async function fetchAndCacheRepo(
 	db: D1Database,
 	token: string,
 	owner: string,
-	repo: string
+	repo: string,
 ): Promise<any[]> {
 	const fullName = `${owner}/${repo}`;
 
@@ -224,10 +269,12 @@ async function updateRepoData(
 	token: string,
 	owner: string,
 	repo: string,
-	lastPrNumber: number
+	lastPrNumber: number,
 ): Promise<void> {
 	try {
-		console.log(`Background update for ${owner}/${repo} from PR #${lastPrNumber + 1}`);
+		console.log(
+			`Background update for ${owner}/${repo} from PR #${lastPrNumber + 1}`,
+		);
 
 		// Fetch only new PRs since last update
 		const newPRs = await fetchMergedPRs(token, owner, repo, lastPrNumber + 1);
@@ -236,14 +283,17 @@ async function updateRepoData(
 			console.log(`Found ${newPRs.length} new PRs, updating cache`);
 			await storeRepoData(db, owner, repo, newPRs, true);
 		} else {
-			console.log('No new PRs, cache is up to date');
+			console.log("No new PRs, cache is up to date");
 			// Update timestamp anyway
-			await db.prepare(
-				'UPDATE repos SET last_updated = ? WHERE owner = ? AND name = ?'
-			).bind(Math.floor(Date.now() / 1000), owner, repo).run();
+			await db
+				.prepare(
+					"UPDATE repos SET last_updated = ? WHERE owner = ? AND name = ?",
+				)
+				.bind(Math.floor(Date.now() / 1000), owner, repo)
+				.run();
 		}
 	} catch (error) {
-		console.error('Error in background update:', error);
+		console.error("Error in background update:", error);
 	}
 }
 
@@ -255,7 +305,7 @@ async function fetchMergedPRs(
 	owner: string,
 	repo: string,
 	sinceNumber?: number,
-	maxPages: number = 3  // Limit pages to avoid subrequest limit
+	maxPages: number = 3, // Limit pages to avoid subrequest limit
 ): Promise<any[]> {
 	const allPRs: any[] = [];
 	let page = 1;
@@ -266,9 +316,9 @@ async function fetchMergedPRs(
 
 		const response = await fetch(url, {
 			headers: {
-				'Authorization': `Bearer ${token}`,
-				'Accept': 'application/vnd.github.v3+json',
-				'User-Agent': 'Repo-Timeline-Worker',
+				Authorization: `Bearer ${token}`,
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "Repo-Timeline-Worker",
 			},
 		});
 
@@ -277,7 +327,7 @@ async function fetchMergedPRs(
 				throw new Error(`Repository ${owner}/${repo} not found`);
 			}
 			if (response.status === 403) {
-				throw new Error('GitHub API rate limit exceeded');
+				throw new Error("GitHub API rate limit exceeded");
 			}
 			throw new Error(`GitHub API error: ${response.status}`);
 		}
@@ -289,27 +339,28 @@ async function fetchMergedPRs(
 		}
 
 		// Filter for merged PRs
-		const mergedPRs = prs.filter(pr => pr.merged_at);
+		const mergedPRs = prs.filter((pr) => pr.merged_at);
 
 		// If we're doing incremental update, skip PRs we already have
 		const newPRs = sinceNumber
-			? mergedPRs.filter(pr => pr.number >= sinceNumber)
+			? mergedPRs.filter((pr) => pr.number >= sinceNumber)
 			: mergedPRs;
 
 		// Limit total PRs to avoid subrequest limit (50 per worker invocation)
 		const prLimit = 40; // Leave room for other requests
-		const prsToFetch = allPRs.length + newPRs.length > prLimit
-			? newPRs.slice(0, prLimit - allPRs.length)
-			: newPRs;
+		const prsToFetch =
+			allPRs.length + newPRs.length > prLimit
+				? newPRs.slice(0, prLimit - allPRs.length)
+				: newPRs;
 
 		// Fetch files for each PR
 		for (const pr of prsToFetch) {
 			const filesUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}/files`;
 			const filesResponse = await fetch(filesUrl, {
 				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Accept': 'application/vnd.github.v3+json',
-					'User-Agent': 'Repo-Timeline-Worker',
+					Authorization: `Bearer ${token}`,
+					Accept: "application/vnd.github.v3+json",
+					"User-Agent": "Repo-Timeline-Worker",
 				},
 			});
 
@@ -347,79 +398,94 @@ async function storeRepoData(
 	owner: string,
 	name: string,
 	prs: any[],
-	isUpdate = false
+	isUpdate = false,
 ): Promise<void> {
 	const fullName = `${owner}/${name}`;
 	const now = Math.floor(Date.now() / 1000);
 
 	// Insert or update repo first
 	if (isUpdate) {
-		const lastPrNumber = Math.max(...prs.map(pr => pr.number));
-		await db.prepare(
-			'UPDATE repos SET last_updated = ?, last_pr_number = ? WHERE full_name = ?'
-		).bind(now, lastPrNumber, fullName).run();
+		const lastPrNumber = Math.max(...prs.map((pr) => pr.number));
+		await db
+			.prepare(
+				"UPDATE repos SET last_updated = ?, last_pr_number = ? WHERE full_name = ?",
+			)
+			.bind(now, lastPrNumber, fullName)
+			.run();
 	} else {
-		await db.prepare(`
+		await db
+			.prepare(`
 			INSERT INTO repos (owner, name, full_name, last_updated, last_pr_number, created_at)
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(full_name) DO UPDATE SET last_updated = ?, last_pr_number = ?
-		`).bind(
-			owner,
-			name,
-			fullName,
-			now,
-			prs.length > 0 ? Math.max(...prs.map(pr => pr.number)) : 0,
-			now,
-			now,
-			prs.length > 0 ? Math.max(...prs.map(pr => pr.number)) : 0
-		).run();
+		`)
+			.bind(
+				owner,
+				name,
+				fullName,
+				now,
+				prs.length > 0 ? Math.max(...prs.map((pr) => pr.number)) : 0,
+				now,
+				now,
+				prs.length > 0 ? Math.max(...prs.map((pr) => pr.number)) : 0,
+			)
+			.run();
 	}
 
 	// Get repo ID
-	const repo = await db.prepare(
-		'SELECT id FROM repos WHERE full_name = ?'
-	).bind(fullName).first();
+	const repo = await db
+		.prepare("SELECT id FROM repos WHERE full_name = ?")
+		.bind(fullName)
+		.first();
 
 	if (!repo) {
-		throw new Error('Failed to get repo ID');
+		throw new Error("Failed to get repo ID");
 	}
 
 	// Insert PRs and their files
 	for (const pr of prs) {
 		// Insert PR first
-		await db.prepare(`
+		await db
+			.prepare(`
 			INSERT INTO pull_requests (repo_id, pr_number, title, author, merged_at, created_at)
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(repo_id, pr_number) DO NOTHING
-		`).bind(
-			repo.id,
-			pr.number,
-			pr.title,
-			pr.user.login,
-			Math.floor(new Date(pr.merged_at).getTime() / 1000),
-			now
-		).run();
+		`)
+			.bind(
+				repo.id,
+				pr.number,
+				pr.title,
+				pr.user.login,
+				Math.floor(new Date(pr.merged_at).getTime() / 1000),
+				now,
+			)
+			.run();
 
 		// Get PR ID
-		const prRow = await db.prepare(
-			'SELECT id FROM pull_requests WHERE repo_id = ? AND pr_number = ?'
-		).bind(repo.id, pr.number).first();
+		const prRow = await db
+			.prepare(
+				"SELECT id FROM pull_requests WHERE repo_id = ? AND pr_number = ?",
+			)
+			.bind(repo.id, pr.number)
+			.first();
 
 		if (prRow && pr.files && pr.files.length > 0) {
 			// Batch insert files for this PR
 			const fileBatch = pr.files.map((file: any) =>
-				db.prepare(`
+				db
+					.prepare(`
 					INSERT INTO pr_files (pr_id, filename, status, additions, deletions, previous_filename)
 					VALUES (?, ?, ?, ?, ?, ?)
 					ON CONFLICT DO NOTHING
-				`).bind(
-					prRow.id,
-					file.filename,
-					file.status,
-					file.additions || 0,
-					file.deletions || 0,
-					file.previous_filename || null
-				)
+				`)
+					.bind(
+						prRow.id,
+						file.filename,
+						file.status,
+						file.additions || 0,
+						file.deletions || 0,
+						file.previous_filename || null,
+					),
 			);
 
 			await db.batch(fileBatch);

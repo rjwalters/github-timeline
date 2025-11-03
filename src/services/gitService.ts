@@ -99,7 +99,11 @@ export class GitService {
 			const source = this.workerUrl ? "Worker Cache" : "GitHub API";
 			console.log(`Fetching from ${source}: ${this.repoPath}`);
 			try {
-				this.githubService = new GitHubApiService(this.repoPath, this.token, this.workerUrl);
+				this.githubService = new GitHubApiService(
+					this.repoPath,
+					this.token,
+					this.workerUrl,
+				);
 				const cacheKey = this.getCacheKey();
 				const commits =
 					await this.githubService.buildTimelineFromPRsIncremental(
