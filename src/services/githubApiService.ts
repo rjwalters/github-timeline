@@ -102,30 +102,25 @@ export class GitHubApiService {
 	}
 
 	/**
-	 * Fetch repository status from Cloudflare Worker
+	 * Fetch cache status from Cloudflare Worker (instant!)
 	 */
-	async fetchRepoStatus(): Promise<{
-		github: {
-			totalPRs: number;
-			firstPR: number | null;
-			lastPR: number | null;
-			oldestMerge: string | null;
-			newestMerge: string | null;
-		};
+	async fetchCacheStatus(): Promise<{
 		cache: {
+			exists: boolean;
 			cachedPRs: number;
-			coveragePercent: number;
 			ageSeconds: number | null;
 			lastPRNumber: number | null;
+			firstPR: { number: number; merged_at: string } | null;
+			lastPR: { number: number; merged_at: string } | null;
 		};
-		recommendation: "ready" | "partial" | "fetching";
+		status: "ready" | "partial" | "fetching";
 	}> {
 		if (!this.workerUrl) {
-			throw new Error("Worker URL required for status fetch");
+			throw new Error("Worker URL required for cache status");
 		}
 
-		const url = `${this.workerUrl}/api/repo/${this.owner}/${this.repo}/status`;
-		console.log("Fetching status from:", url);
+		const url = `${this.workerUrl}/api/repo/${this.owner}/${this.repo}/cache`;
+		console.log("Fetching cache status from:", url);
 
 		const response = await fetch(url);
 		console.log("Response status:", response.status, response.statusText);
@@ -135,24 +130,56 @@ export class GitHubApiService {
 				.json()
 				.catch(() => ({ error: "Unknown error" }));
 			throw new Error(
-				error.error || `Status request failed: ${response.status}`,
+				error.error || `Cache status request failed: ${response.status}`,
 			);
 		}
 
 		const data = await response.json();
-		console.log("fetchRepoStatus response data:", data);
+		console.log("fetchCacheStatus response data:", data);
 
-		// Extract only the status fields (API returns owner/repo too)
-		const status = {
-			github: data.github,
+		const cacheStatus = {
 			cache: data.cache,
-			recommendation: data.recommendation,
+			status: data.status,
 		};
 
 		console.log(
-			`Repository status: ${status.github.totalPRs} total PRs, ${status.cache.cachedPRs} cached (${status.cache.coveragePercent}%)`,
+			`Cache status: ${cacheStatus.cache.cachedPRs} cached PRs - ${cacheStatus.status}`,
 		);
-		return status;
+		return cacheStatus;
+	}
+
+	/**
+	 * Fetch repo summary from GitHub (fast, just first page)
+	 */
+	async fetchRepoSummary(): Promise<{
+		github: {
+			estimatedTotalPRs: number;
+			hasMoreThan100PRs: boolean;
+			firstMergedPR: { number: number; merged_at: string } | null;
+		};
+	}> {
+		if (!this.workerUrl) {
+			throw new Error("Worker URL required for summary");
+		}
+
+		const url = `${this.workerUrl}/api/repo/${this.owner}/${this.repo}/summary`;
+		console.log("Fetching repo summary from:", url);
+
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			const error = await response
+				.json()
+				.catch(() => ({ error: "Unknown error" }));
+			throw new Error(
+				error.error || `Summary request failed: ${response.status}`,
+			);
+		}
+
+		const data = await response.json();
+		console.log("fetchRepoSummary response data:", data);
+
+		return { github: data.github };
 	}
 
 	/**

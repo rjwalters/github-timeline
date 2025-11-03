@@ -88,13 +88,22 @@ export default {
 			);
 		}
 
-		// API endpoint: /api/repo/:owner/:repo/status (repo and cache status)
-		const statusMatch = url.pathname.match(
-			/^\/api\/repo\/([^/]+)\/([^/]+)\/status$/,
+		// API endpoint: /api/repo/:owner/:repo/cache (cache status only - instant!)
+		const cacheMatch = url.pathname.match(
+			/^\/api\/repo\/([^/]+)\/([^/]+)\/cache$/,
 		);
-		if (statusMatch) {
-			const [, owner, repo] = statusMatch;
-			return handleStatusRequest(
+		if (cacheMatch) {
+			const [, owner, repo] = cacheMatch;
+			return handleCacheStatusRequest(env, ctx, owner, repo, corsHeaders);
+		}
+
+		// API endpoint: /api/repo/:owner/:repo/summary (GitHub repo summary - fast)
+		const summaryMatch = url.pathname.match(
+			/^\/api\/repo\/([^/]+)\/([^/]+)\/summary$/,
+		);
+		if (summaryMatch) {
+			const [, owner, repo] = summaryMatch;
+			return handleRepoSummaryRequest(
 				env,
 				ctx,
 				tokenRotator.getNextToken(),
@@ -203,13 +212,12 @@ export default {
 };
 
 /**
- * Handle status request - returns repo info and cache status
- * Optimized to return immediately with cached data, then trigger background updates
+ * Handle cache status request - INSTANT response, just D1 query
+ * Also triggers background cache population if needed
  */
-async function handleStatusRequest(
+async function handleCacheStatusRequest(
 	env: Env,
 	ctx: ExecutionContext,
-	token: string,
 	owner: string,
 	repo: string,
 	corsHeaders: Record<string, string>,
@@ -217,98 +225,148 @@ async function handleStatusRequest(
 	const fullName = `${owner}/${repo}`;
 
 	try {
-		// Check cache status first (fast - local D1 query)
+		// Get cache status (instant D1 query)
 		const cached = await getCachedData(env.DB, fullName);
 		const cachedPRCount = cached ? cached.prs.length : 0;
 		const cacheAge = cached ? Date.now() / 1000 - cached.lastUpdated : null;
 
-		// If we have no cache, fetch a small sample synchronously for initial data
-		if (!cached) {
-			console.log(
-				`No cache for ${fullName}, fetching initial sample in background`,
-			);
-			// Trigger background fetch of first batch
-			ctx.waitUntil(
-				fetchAndCachePartialRepo(env.DB, token, owner, repo, 0, 20),
-			);
+		// Get metadata from cache if available
+		const firstPR = cached?.prs[0];
+		const lastPR = cached?.prs[cachedPRCount - 1];
 
-			// Return immediate response showing fetching state
-			return new Response(
-				JSON.stringify({
+		// Trigger background cache population if cache is empty or old
+		const tokenRotator = new TokenRotator(env.GITHUB_TOKENS);
+		if (!cached || (cacheAge && cacheAge > 3600)) {
+			console.log(
+				`Cache ${!cached ? "missing" : "old"} for ${fullName}, triggering background fetch`,
+			);
+			ctx.waitUntil(
+				fetchAndCachePartialRepo(
+					env.DB,
+					tokenRotator.getNextToken(),
 					owner,
 					repo,
-					github: {
-						totalPRs: 0, // Unknown yet
-						firstPR: null,
-						lastPR: null,
-						oldestMerge: null,
-						newestMerge: null,
-					},
-					cache: {
-						cachedPRs: 0,
-						coveragePercent: 0,
-						ageSeconds: null,
-						lastPRNumber: null,
-					},
-					recommendation: "fetching",
-				}),
-				{
-					headers: {
-						...corsHeaders,
-						"Content-Type": "application/json",
-					},
-				},
+					cached?.lastPrNumber || 0,
+					45, // Fetch up to 45 PRs (subrequest limit)
+				),
 			);
 		}
 
-		// We have cache - get metadata from cache instead of GitHub API
-		const firstPR = cached.prs[0];
-		const lastPR = cached.prs[cachedPRCount - 1];
-
-		// Estimate total PRs based on cache (we'll refine this in background)
-		// For now, use cached data as the source of truth
-		const estimatedTotalPRs = cachedPRCount;
-
-		// Trigger background update to fetch more PRs if needed
-		ctx.waitUntil(
-			fetchAndCachePartialRepo(
-				env.DB,
-				token,
-				owner,
-				repo,
-				cached.lastPrNumber,
-				20, // Fetch 20 more PRs in background
-			),
-		);
-
-		const status = {
+		const response = {
 			owner,
 			repo,
-			github: {
-				totalPRs: estimatedTotalPRs,
-				firstPR: firstPR?.number || null,
-				lastPR: lastPR?.number || null,
-				oldestMerge: firstPR?.merged_at || null,
-				newestMerge: lastPR?.merged_at || null,
-			},
 			cache: {
+				exists: !!cached,
 				cachedPRs: cachedPRCount,
-				coveragePercent: 100, // We're showing cached data, so it's 100% of what we know
 				ageSeconds: cacheAge ? Math.round(cacheAge) : null,
-				lastPRNumber: cached.lastPrNumber,
+				lastPRNumber: cached?.lastPrNumber || null,
+				firstPR: firstPR
+					? {
+							number: firstPR.number,
+							merged_at: firstPR.merged_at,
+						}
+					: null,
+				lastPR: lastPR
+					? {
+							number: lastPR.number,
+							merged_at: lastPR.merged_at,
+						}
+					: null,
 			},
-			recommendation: cachedPRCount > 10 ? "ready" : "partial",
+			status: !cached ? "fetching" : cachedPRCount < 10 ? "partial" : "ready",
 		};
 
-		return new Response(JSON.stringify(status), {
+		return new Response(JSON.stringify(response), {
 			headers: {
 				...corsHeaders,
 				"Content-Type": "application/json",
-				"X-Cache": "HIT",
+				"X-Cache-Hit": cached ? "true" : "false",
 			},
 		});
 	} catch (error) {
-		console.error("Error fetching status:", error);
+		console.error("Error checking cache:", error);
+		return new Response(
+			JSON.stringify({
+				error: error instanceof Error ? error.message : "Internal server error",
+			}),
+			{
+				status: 500,
+				headers: { ...corsHeaders, "Content-Type": "application/json" },
+			},
+		);
+	}
+}
+
+/**
+ * Handle repo summary request - Fast GitHub API check (just first page)
+ * Returns quick stats about the repo from GitHub
+ */
+async function handleRepoSummaryRequest(
+	env: Env,
+	ctx: ExecutionContext,
+	token: string,
+	owner: string,
+	repo: string,
+	corsHeaders: Record<string, string>,
+): Promise<Response> {
+	try {
+		// Fetch just first page to get basic stats
+		const url = `https://api.github.com/repos/${owner}/${repo}/pulls?state=closed&per_page=100&page=1&sort=created&direction=asc`;
+
+		const response = await fetch(url, {
+			headers: {
+				Authorization: `Bearer ${token}`,
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "Repo-Timeline-Worker",
+			},
+		});
+
+		if (!response.ok) {
+			if (response.status === 404) {
+				throw new Error(`Repository ${owner}/${repo} not found`);
+			}
+			if (response.status === 403) {
+				throw new Error("GitHub API rate limit exceeded");
+			}
+			throw new Error(`GitHub API error: ${response.status}`);
+		}
+
+		const prs: PullRequest[] = await response.json();
+		const mergedPRs = prs.filter((pr) => pr.merged_at);
+
+		// Estimate total from Link header if available
+		const linkHeader = response.headers.get("Link");
+		let estimatedTotal = mergedPRs.length;
+		if (linkHeader && linkHeader.includes('rel="last"')) {
+			const match = linkHeader.match(/page=(\d+)>; rel="last"/);
+			if (match) {
+				estimatedTotal = parseInt(match[1]) * 70; // Rough estimate
+			}
+		}
+
+		const summary = {
+			owner,
+			repo,
+			github: {
+				estimatedTotalPRs: estimatedTotal,
+				hasMoreThan100PRs: !!linkHeader && linkHeader.includes('rel="last"'),
+				firstMergedPR: mergedPRs[0]
+					? {
+							number: mergedPRs[0].number,
+							merged_at: mergedPRs[0].merged_at,
+						}
+					: null,
+			},
+		};
+
+		return new Response(JSON.stringify(summary), {
+			headers: {
+				...corsHeaders,
+				"Content-Type": "application/json",
+			},
+		});
+	} catch (error) {
+		console.error("Error fetching summary:", error);
 		return new Response(
 			JSON.stringify({
 				error: error instanceof Error ? error.message : "Internal server error",
