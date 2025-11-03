@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { GitHubAuthButton } from "./GitHubAuthButton";
 
 export function RepoInput() {
 	const navigate = useNavigate();
 	const [input, setInput] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [githubToken, setGithubToken] = useState<string | null>(() =>
+		localStorage.getItem("github_token"),
+	);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -82,9 +86,24 @@ export function RepoInput() {
 					</ul>
 				</div>
 
-				<div className="mt-6 text-center text-xs text-gray-500">
-					<p>This tool fetches public repository data from GitHub's API.</p>
-					<p className="mt-1">Rate limit: 60 requests/hour (unauthenticated)</p>
+				<div className="mt-6 p-4 bg-slate-800 rounded-lg border border-slate-700">
+					<div className="flex items-center justify-between mb-2">
+						<h3 className="text-sm font-semibold">GitHub Authentication</h3>
+						<GitHubAuthButton
+							currentToken={githubToken}
+							onTokenChange={setGithubToken}
+						/>
+					</div>
+					<div className="text-xs text-gray-400">
+						<p>
+							{githubToken
+								? "✓ Authenticated: 5000 requests/hour"
+								: "⚠ Unauthenticated: 60 requests/hour"}
+						</p>
+						<p className="mt-1">
+							Add a GitHub token for higher rate limits and better performance.
+						</p>
+					</div>
 				</div>
 			</div>
 		</div>
