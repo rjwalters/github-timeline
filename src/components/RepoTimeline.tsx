@@ -1,5 +1,6 @@
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TEST_MODE, WORKER_URL } from "../config";
 import type { RateLimitInfo } from "../services/githubApiService";
 import { GitService, LoadProgress } from "../services/gitService";
 import { CommitData, FileEdge, FileNode } from "../types";
@@ -11,16 +12,10 @@ import {
 	TimelineScrubber,
 } from "./TimelineScrubber";
 
-// Cloudflare Worker URL for cached data
-const WORKER_URL = "https://repo-timeline-api.personal-account-251.workers.dev";
-
 interface RepoTimelineProps {
 	repoPath: string;
 	onBack?: () => void;
 }
-
-// TEST MODE: Set to true to bypass loading and show test scene
-const TEST_MODE = false;
 
 export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 	const [commits, setCommits] = useState<CommitData[]>([]);
