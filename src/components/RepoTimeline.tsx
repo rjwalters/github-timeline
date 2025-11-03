@@ -12,6 +12,9 @@ import {
 	TimelineScrubber,
 } from "./TimelineScrubber";
 
+// Cloudflare Worker URL for cached data
+const WORKER_URL = "https://repo-timeline-api.personal-account-251.workers.dev";
+
 interface RepoTimelineProps {
 	repoPath: string;
 	onBack?: () => void;
@@ -40,7 +43,11 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 
 	const loadCommits = useCallback(
 		async (forceRefresh = false) => {
-			const gitService = new GitService(repoPath, githubToken || undefined);
+			const gitService = new GitService(
+				repoPath,
+				githubToken || undefined,
+				WORKER_URL
+			);
 			gitServiceRef.current = gitService;
 
 			// Check if data was from cache

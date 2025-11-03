@@ -26,11 +26,13 @@ export interface LoadProgress {
 export class GitService {
 	private repoPath: string;
 	private token?: string;
+	private workerUrl?: string;
 	private githubService?: GitHubApiService;
 
-	constructor(repoPath: string, token?: string) {
+	constructor(repoPath: string, token?: string, workerUrl?: string) {
 		this.repoPath = repoPath;
 		this.token = token;
+		this.workerUrl = workerUrl;
 	}
 
 	getRateLimitInfo(): RateLimitInfo | null {
@@ -94,9 +96,10 @@ export class GitService {
 	): Promise<CommitData[]> {
 		// Check if repoPath is in GitHub format (owner/repo)
 		if (/^[^/]+\/[^/]+$/.test(this.repoPath)) {
-			console.log(`Fetching from GitHub API: ${this.repoPath}`);
+			const source = this.workerUrl ? "Worker Cache" : "GitHub API";
+			console.log(`Fetching from ${source}: ${this.repoPath}`);
 			try {
-				this.githubService = new GitHubApiService(this.repoPath, this.token);
+				this.githubService = new GitHubApiService(this.repoPath, this.token, this.workerUrl);
 				const cacheKey = this.getCacheKey();
 				const commits =
 					await this.githubService.buildTimelineFromPRsIncremental(

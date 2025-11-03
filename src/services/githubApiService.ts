@@ -54,12 +54,41 @@ export class GitHubApiService {
 	private requestDelay = 1000; // 1 second between requests to avoid rate limiting
 	private token?: string;
 	private lastRateLimit: RateLimitInfo | null = null;
+	private workerUrl?: string;
 
-	constructor(repoPath: string, token?: string) {
+	constructor(repoPath: string, token?: string, workerUrl?: string) {
 		const [owner, repo] = repoPath.split("/");
 		this.owner = owner;
 		this.repo = repo;
 		this.token = token;
+		this.workerUrl = workerUrl;
+	}
+
+	/**
+	 * Check if we should use the worker for this request
+	 */
+	private shouldUseWorker(): boolean {
+		return !!this.workerUrl;
+	}
+
+	/**
+	 * Fetch data from Cloudflare Worker
+	 */
+	private async fetchFromWorker(): Promise<GitHubPR[]> {
+		if (!this.workerUrl) {
+			throw new Error("Worker URL not configured");
+		}
+
+		const url = `${this.workerUrl}/api/repo/${this.owner}/${this.repo}`;
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			const error = await response.json().catch(() => ({ error: "Unknown error" }));
+			throw new Error(error.error || `Worker request failed: ${response.status}`);
+		}
+
+		const data = await response.json();
+		return data;
 	}
 
 	getRateLimitInfo(): RateLimitInfo | null {
@@ -221,15 +250,40 @@ export class GitHubApiService {
 		onProgress?: (progress: LoadProgress) => void,
 		onSaveCache?: (commits: CommitData[]) => void,
 	): Promise<CommitData[]> {
-		// Fetch all merged PRs
-		const prs = await this.fetchMergedPRs((progress) => {
+		// Use worker if available, otherwise fetch from GitHub API
+		let prs: GitHubPR[];
+
+		if (this.shouldUseWorker()) {
 			if (onProgress) {
 				onProgress({
-					...progress,
-					percentage: 10,
+					loaded: 0,
+					total: -1,
+					percentage: 0,
+					message: "Fetching data from cache...",
 				});
 			}
-		});
+
+			prs = await this.fetchFromWorker();
+
+			if (onProgress) {
+				onProgress({
+					loaded: prs.length,
+					total: prs.length,
+					percentage: 50,
+					message: `Loaded ${prs.length} PRs from cache`,
+				});
+			}
+		} else {
+			// Fetch all merged PRs from GitHub API
+			prs = await this.fetchMergedPRs((progress) => {
+				if (onProgress) {
+					onProgress({
+						...progress,
+						percentage: 10,
+					});
+				}
+			});
+		}
 
 		if (prs.length === 0) {
 			// Fall back to fetching commits directly if no PRs found
@@ -253,8 +307,8 @@ export class GitHubApiService {
 				});
 			}
 
-			// Fetch files for this PR
-			const prFiles = await this.fetchPRFiles(pr.number);
+			// Get files - either from worker (already included) or fetch from GitHub
+			const prFiles = (pr as any).files || (await this.fetchPRFiles(pr.number));
 
 			// Update file state
 			for (const file of prFiles) {
