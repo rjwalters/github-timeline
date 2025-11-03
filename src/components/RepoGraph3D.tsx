@@ -25,8 +25,8 @@ export function RepoGraph3D({ nodes, edges, onNodeClick }: RepoGraph3DProps) {
 
 		// Initialize or update simulation with tuned parameters
 		simulationRef.current = new ForceSimulation(nodesCopy, edges, {
-			strength: 0.1, // Spring stiffness
-			distance: 30, // Ideal spring distance
+			strength: 1.0, // Spring stiffness (10x stronger to pull nodes closer)
+			distance: 15, // Ideal spring distance (reduced for tighter layout)
 			iterations: 500, // More iterations for better convergence
 		});
 
