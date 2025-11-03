@@ -1,4 +1,6 @@
 import {
+	ChevronsLeft,
+	ChevronsRight,
 	FastForward,
 	Pause,
 	Play,
@@ -63,7 +65,7 @@ export const PlaybackControls = memo(function PlaybackControls({
 				className={iconButtonClass}
 				title="Skip to first commit"
 			>
-				<SkipBack size={18} />
+				<ChevronsLeft size={18} />
 			</button>
 
 			{/* Previous */}
@@ -123,7 +125,7 @@ export const PlaybackControls = memo(function PlaybackControls({
 				className={iconButtonClass}
 				title="Skip to last commit"
 			>
-				<SkipForward size={18} />
+				<ChevronsRight size={18} />
 			</button>
 		</div>
 	);
