@@ -1,0 +1,15 @@
+name = "repo-timeline-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "repo_timeline"
+database_id = "" # Will be filled after creating the database
+
+# Secrets (set with: wrangler secret put GITHUB_TOKEN)
+# GITHUB_TOKEN = "your-github-pat"
+
+[env.production]
+# Production-specific settings can go here
