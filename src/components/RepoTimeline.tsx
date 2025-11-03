@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RateLimitInfo } from "../services/githubApiService";
 import { GitService, LoadProgress } from "../services/gitService";
 import { CommitData, FileNode } from "../types";
-import { GitHubAuthButton } from "./GitHubAuthButton";
 import { RateLimitDisplay } from "./RateLimitDisplay";
 import { RepoGraph3D } from "./RepoGraph3D";
 import {
@@ -28,9 +27,6 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 	const [loadProgress, setLoadProgress] = useState<LoadProgress | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedNode, setSelectedNode] = useState<FileNode | null>(null);
-	const [githubToken, setGithubToken] = useState<string | null>(() =>
-		localStorage.getItem("github_token"),
-	);
 	const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
@@ -45,7 +41,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 		async (forceRefresh = false) => {
 			const gitService = new GitService(
 				repoPath,
-				githubToken || undefined,
+				undefined, // No token needed - using worker
 				WORKER_URL,
 			);
 			gitServiceRef.current = gitService;
@@ -141,7 +137,7 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 				}
 			}
 		},
-		[repoPath, githubToken],
+		[repoPath],
 	);
 
 	useEffect(() => {
@@ -240,22 +236,6 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 					<div className="text-sm text-gray-500 mb-6">
 						Repository: {repoPath}
 					</div>
-
-					{isRateLimitError && !githubToken && (
-						<div className="mb-6 p-4 bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg">
-							<div className="text-yellow-400 font-semibold mb-2">
-								💡 Add a GitHub Token
-							</div>
-							<div className="text-sm text-gray-300 mb-3">
-								Authenticated requests have a limit of 5,000/hour instead of
-								60/hour.
-							</div>
-							<GitHubAuthButton
-								currentToken={githubToken}
-								onTokenChange={setGithubToken}
-							/>
-						</div>
-					)}
 
 					{rateLimit && (
 						<div className="mb-6 text-sm text-gray-400">
@@ -388,10 +368,6 @@ export function RepoTimeline({ repoPath, onBack }: RepoTimelineProps) {
 									loaded)
 								</div>
 							)}
-							<GitHubAuthButton
-								currentToken={githubToken}
-								onTokenChange={setGithubToken}
-							/>
 							{rateLimit && (
 								<RateLimitDisplay
 									remaining={rateLimit.remaining}
