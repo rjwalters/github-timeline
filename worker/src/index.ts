@@ -551,7 +551,7 @@ async function fetchAllMergedPRsMetadata(
 	const allPRs: any[] = [];
 	let page = 1;
 	const perPage = 100;
-	const maxPages = 100; // Can fetch many pages since no file requests
+	const maxPages = 50; // Cloudflare Workers subrequest limit
 
 	console.log(`Fetching metadata for ${owner}/${repo}`);
 

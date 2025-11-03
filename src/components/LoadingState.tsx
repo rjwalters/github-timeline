@@ -13,7 +13,8 @@ export function LoadingState({ loadProgress, fromCache }: LoadingStateProps) {
 				{loadProgress ? (
 					<>
 						<div className="mb-2 text-gray-400">
-							{loadProgress.message || `Loading commits: ${loadProgress.loaded} / ${loadProgress.total}`}
+							{loadProgress.message ||
+								`Loading commits: ${loadProgress.loaded} / ${loadProgress.total}`}
 						</div>
 						<div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
 							<div
@@ -27,7 +28,9 @@ export function LoadingState({ loadProgress, fromCache }: LoadingStateProps) {
 					</>
 				) : (
 					<div className="text-gray-400">
-						{fromCache ? "Loading from cache..." : "Analyzing commit history..."}
+						{fromCache
+							? "Loading from cache..."
+							: "Analyzing commit history..."}
 					</div>
 				)}
 			</div>

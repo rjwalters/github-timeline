@@ -117,6 +117,20 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUndeclaredVariables": "off",
+						"noUnusedVariables": "off"
+					},
+					"suspicious": {
+						"noExplicitAny": "off"
+					}
+				}
+			}
 		}
 	],
 	"assist": {

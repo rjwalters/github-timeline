@@ -10,11 +10,5 @@
     "path": "dist/index.umd.js",
     "limit": "15 KB",
     "gzip": true
-  },
-  {
-    "name": "CSS",
-    "path": "dist/style.css",
-    "limit": "4 KB",
-    "gzip": true
   }
 ]

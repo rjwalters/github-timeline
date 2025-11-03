@@ -120,6 +120,8 @@ pnpm test:coverage     # Run tests with coverage report
 pnpm test:ui           # Run tests with interactive UI
 ```
 
+Coverage thresholds are set at 50% for statements, branches, functions, and lines.
+
 ### Lint
 
 ```bash
@@ -127,6 +129,17 @@ pnpm lint         # Check code quality
 pnpm lint:fix     # Auto-fix issues
 pnpm format       # Format code with Biome
 ```
+
+### Bundle Size
+
+```bash
+pnpm size         # Check bundle sizes against limits
+pnpm size:why     # Analyze what's included in bundles
+```
+
+Current bundle sizes:
+- ESM: ~14 KB gzipped (limit: 18 KB)
+- UMD: ~14 KB gzipped (limit: 15 KB)
 
 ### Preview
 

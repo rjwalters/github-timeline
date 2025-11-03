@@ -36,3 +36,9 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           fail_ci_if_error: false
+
+      - name: Build library
+        run: pnpm build
+
+      - name: Check bundle size
+        run: pnpm size
