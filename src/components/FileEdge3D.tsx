@@ -15,15 +15,25 @@ export function FileEdge3D({ edge, nodes }: FileEdge3DProps) {
 		if (!source || !target) return { geometry: null, color: "#ffffff" };
 
 		// Calculate node radii (same logic as FileNode3D)
-		const sourceRadius = source.type === "directory"
-			? 3.0
-			: Math.max(2.0, Math.min(15, Math.log10(source.size + 1) * 4));
-		const targetRadius = target.type === "directory"
-			? 3.0
-			: Math.max(2.0, Math.min(15, Math.log10(target.size + 1) * 4));
+		const sourceRadius =
+			source.type === "directory"
+				? 3.0
+				: Math.max(2.0, Math.min(15, Math.log10(source.size + 1) * 4));
+		const targetRadius =
+			target.type === "directory"
+				? 3.0
+				: Math.max(2.0, Math.min(15, Math.log10(target.size + 1) * 4));
 
-		const sourcePos = new THREE.Vector3(source.x || 0, source.y || 0, source.z || 0);
-		const targetPos = new THREE.Vector3(target.x || 0, target.y || 0, target.z || 0);
+		const sourcePos = new THREE.Vector3(
+			source.x || 0,
+			source.y || 0,
+			source.z || 0,
+		);
+		const targetPos = new THREE.Vector3(
+			target.x || 0,
+			target.y || 0,
+			target.z || 0,
+		);
 
 		// Calculate direction vector
 		const direction = new THREE.Vector3().subVectors(targetPos, sourcePos);
@@ -34,8 +44,12 @@ export function FileEdge3D({ edge, nodes }: FileEdge3DProps) {
 		direction.normalize();
 
 		// Shorten the edge to stop at node surfaces
-		const start = sourcePos.clone().add(direction.clone().multiplyScalar(sourceRadius));
-		const end = targetPos.clone().sub(direction.clone().multiplyScalar(targetRadius));
+		const start = sourcePos
+			.clone()
+			.add(direction.clone().multiplyScalar(sourceRadius));
+		const end = targetPos
+			.clone()
+			.sub(direction.clone().multiplyScalar(targetRadius));
 
 		// Create a tube geometry for the edge with visible thickness
 		const path = new THREE.LineCurve3(start, end);
@@ -47,7 +61,7 @@ export function FileEdge3D({ edge, nodes }: FileEdge3DProps) {
 		const color = edge.type === "parent" ? "#ffffff" : "#22d3ee";
 
 		return { geometry, color };
-	}, [source?.x, source?.y, source?.z, source?.size, source?.type, target?.x, target?.y, target?.z, target?.size, target?.type, edge.type]);
+	}, [source, target, edge.type]);
 
 	if (!source || !target || !geometry) return null;
 

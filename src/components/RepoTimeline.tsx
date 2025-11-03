@@ -4,6 +4,10 @@ import type { RepoTimelineProps } from "../lib/types";
 import type { RateLimitInfo } from "../services/githubApiService";
 import { GitService, LoadProgress } from "../services/gitService";
 import { CommitData, FileEdge, FileNode } from "../types";
+import { getCurrentIndex } from "../utils/timelineHelpers";
+import { EmptyState } from "./EmptyState";
+import { ErrorState } from "./ErrorState";
+import { LoadingState } from "./LoadingState";
 import { RateLimitDisplay } from "./RateLimitDisplay";
 import { RepoGraph3D } from "./RepoGraph3D";
 import {
@@ -41,26 +45,15 @@ export function RepoTimeline({
 	const [isPlaying, setIsPlaying] = useState(autoPlay);
 	const [playbackSpeed, setPlaybackSpeed] =
 		useState<PlaybackSpeed>(initialPlaybackSpeed);
-	const [playbackDirection, setPlaybackDirection] =
-		useState<PlaybackDirection>(initialPlaybackDirection);
+	const [playbackDirection, setPlaybackDirection] = useState<PlaybackDirection>(
+		initialPlaybackDirection,
+	);
 	const [fromCache, setFromCache] = useState(false);
 	const [rateLimitedCache, setRateLimitedCache] = useState(false);
 	const playbackTimerRef = useRef<number | null>(null);
 	const gitServiceRef = useRef<GitService | null>(null);
 
-	// Find current commit index based on current time
-	const getCurrentIndex = (time: number): number => {
-		if (commits.length === 0) return 0;
-		// Find the latest commit that is <= current time
-		for (let i = commits.length - 1; i >= 0; i--) {
-			if (commits[i].date.getTime() <= time) {
-				return i;
-			}
-		}
-		return 0;
-	};
-
-	const currentIndex = getCurrentIndex(currentTime);
+	const currentIndex = getCurrentIndex(commits, currentTime);
 
 	// Load metadata first to get time range
 	useEffect(() => {
@@ -83,7 +76,7 @@ export function RepoTimeline({
 		};
 
 		loadMetadata();
-	}, [repoPath]);
+	}, [repoPath, workerUrl]);
 
 	const loadCommits = useCallback(
 		async (forceRefresh = false) => {
@@ -188,7 +181,7 @@ export function RepoTimeline({
 				}
 			}
 		},
-		[repoPath, workerUrl],
+		[repoPath, workerUrl, onError],
 	);
 
 	useEffect(() => {
@@ -255,102 +248,69 @@ export function RepoTimeline({
 	};
 
 	if (loading) {
-		return (
-			<div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
-				<div className="text-center max-w-md">
-					<div className="text-xl mb-4">Loading repository...</div>
-					{loadProgress ? (
-						<>
-							<div className="mb-2 text-gray-400">
-								Loading commits: {loadProgress.loaded} / {loadProgress.total}
-							</div>
-							<div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
-								<div
-									className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-									style={{ width: `${loadProgress.percentage}%` }}
-								/>
-							</div>
-							<div className="text-sm text-gray-500">
-								{loadProgress.percentage}%
-							</div>
-						</>
-					) : (
-						<div className="text-gray-400">
-							{fromCache ? "Loading from cache..." : "Analyzing commit history"}
-						</div>
-					)}
-				</div>
-			</div>
-		);
+		return <LoadingState loadProgress={loadProgress} fromCache={fromCache} />;
 	}
 
 	// Show error state
 	if (error) {
-		const isRateLimitError = error.includes("rate limit");
 		return (
-			<div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
-				<div className="text-center max-w-2xl px-8">
-					<div className="text-xl mb-4 text-red-400">
-						{isRateLimitError
-							? "⚠️ GitHub API Rate Limit Exceeded"
-							: "Error Loading Repository"}
-					</div>
-					<div className="text-gray-300 mb-4">{error}</div>
-					<div className="text-sm text-gray-500 mb-6">
-						Repository: {repoPath}
-					</div>
-
-					{rateLimit && (
-						<div className="mb-6 text-sm text-gray-400">
-							<RateLimitDisplay
-								remaining={rateLimit.remaining}
-								limit={rateLimit.limit}
-								resetTime={rateLimit.resetTime}
-							/>
-						</div>
-					)}
-
-					<div className="flex gap-3 justify-center">
-						{onBack && (
-							<button
-								onClick={onBack}
-								className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-							>
-								Back
-							</button>
-						)}
-						<button
-							onClick={() => loadCommits(true)}
-							className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-						>
-							Retry
-						</button>
-					</div>
-				</div>
-			</div>
+			<ErrorState
+				error={error}
+				repoPath={repoPath}
+				rateLimit={rateLimit}
+				onBack={onBack}
+				onRetry={() => loadCommits(true)}
+			/>
 		);
 	}
 
 	// Show initial loading only if we have no data yet and no error
 	if (commits.length === 0 && !backgroundLoading && !error) {
-		return (
-			<div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
-				<div className="text-center">
-					<div className="text-xl mb-2">No commits found</div>
-					<div className="text-gray-400">
-						Unable to load repository data for: {repoPath}
-					</div>
-				</div>
-			</div>
-		);
+		return <EmptyState repoPath={repoPath} />;
 	}
 
 	// TEST DATA: Hardcoded test data to debug edge rendering
 	const testNodes: FileNode[] = [
-		{ id: "src", path: "src", name: "src", size: 0, type: "directory", x: 0, y: 0, z: 0 },
-		{ id: "src/main.ts", path: "src/main.ts", name: "main.ts", size: 1000, type: "file", x: 30, y: 0, z: 0 },
-		{ id: "src/utils", path: "src/utils", name: "utils", size: 0, type: "directory", x: 0, y: 30, z: 0 },
-		{ id: "src/utils/helper.ts", path: "src/utils/helper.ts", name: "helper.ts", size: 500, type: "file", x: 30, y: 30, z: 0 },
+		{
+			id: "src",
+			path: "src",
+			name: "src",
+			size: 0,
+			type: "directory",
+			x: 0,
+			y: 0,
+			z: 0,
+		},
+		{
+			id: "src/main.ts",
+			path: "src/main.ts",
+			name: "main.ts",
+			size: 1000,
+			type: "file",
+			x: 30,
+			y: 0,
+			z: 0,
+		},
+		{
+			id: "src/utils",
+			path: "src/utils",
+			name: "utils",
+			size: 0,
+			type: "directory",
+			x: 0,
+			y: 30,
+			z: 0,
+		},
+		{
+			id: "src/utils/helper.ts",
+			path: "src/utils/helper.ts",
+			name: "helper.ts",
+			size: 500,
+			type: "file",
+			x: 30,
+			y: 30,
+			z: 0,
+		},
 	];
 
 	const testEdges: FileEdge[] = [

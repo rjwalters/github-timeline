@@ -7,6 +7,7 @@ import {
 	SkipForward,
 } from "lucide-react";
 import { CommitData } from "../types";
+import { getCurrentIndex } from "../utils/timelineHelpers";
 
 export type PlaybackSpeed = 1 | 60 | 300 | 1800;
 export type PlaybackDirection = "forward" | "reverse";
@@ -36,19 +37,7 @@ export function TimelineScrubber({
 	playbackDirection,
 	onDirectionChange,
 }: TimelineScrubberProps) {
-	// Find current commit index based on current time
-	const getCurrentIndex = (time: number): number => {
-		if (commits.length === 0) return 0;
-		// Find the latest commit that is <= current time
-		for (let i = commits.length - 1; i >= 0; i--) {
-			if (commits[i].date.getTime() <= time) {
-				return i;
-			}
-		}
-		return 0;
-	};
-
-	const currentIndex = getCurrentIndex(currentTime);
+	const currentIndex = getCurrentIndex(commits, currentTime);
 
 	const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		// Convert slider value (0-100) to timestamp
