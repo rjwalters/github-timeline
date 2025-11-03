@@ -87,7 +87,16 @@ export default {
 			);
 		}
 
-		// API endpoint: /api/repo/:owner/:repo
+		// API endpoint: /api/repo/:owner/:repo/metadata (PR list without files)
+		const metadataMatch = url.pathname.match(
+			/^\/api\/repo\/([^/]+)\/([^/]+)\/metadata$/,
+		);
+		if (metadataMatch) {
+			const [, owner, repo] = metadataMatch;
+			return handleMetadataRequest(env, owner, repo, corsHeaders);
+		}
+
+		// API endpoint: /api/repo/:owner/:repo (full data with files)
 		const match = url.pathname.match(/^\/api\/repo\/([^/]+)\/([^/]+)$/);
 		if (!match) {
 			return new Response(JSON.stringify({ error: "Invalid endpoint" }), {
@@ -175,6 +184,47 @@ export default {
 		}
 	},
 };
+
+/**
+ * Handle metadata-only request (all PRs without files)
+ */
+async function handleMetadataRequest(
+	env: Env,
+	owner: string,
+	repo: string,
+	corsHeaders: Record<string, string>,
+): Promise<Response> {
+	const fullName = `${owner}/${repo}`;
+	const tokenRotator = new TokenRotator(env.GITHUB_TOKENS);
+
+	try {
+		// Fetch all merged PRs without files (fast!)
+		const prs = await fetchAllMergedPRsMetadata(
+			tokenRotator.getNextToken(),
+			owner,
+			repo,
+		);
+
+		return new Response(JSON.stringify(prs), {
+			headers: {
+				...corsHeaders,
+				"Content-Type": "application/json",
+				"X-Metadata-Only": "true",
+			},
+		});
+	} catch (error) {
+		console.error("Error fetching metadata:", error);
+		return new Response(
+			JSON.stringify({
+				error: error instanceof Error ? error.message : "Internal server error",
+			}),
+			{
+				status: 500,
+				headers: { ...corsHeaders, "Content-Type": "application/json" },
+			},
+		);
+	}
+}
 
 /**
  * Clear cached data for a repo
@@ -343,7 +393,73 @@ async function updateRepoData(
 }
 
 /**
- * Fetch merged PRs from GitHub API
+ * Fetch all merged PRs metadata only (no files) - fast!
+ */
+async function fetchAllMergedPRsMetadata(
+	token: string,
+	owner: string,
+	repo: string,
+): Promise<any[]> {
+	const allPRs: any[] = [];
+	let page = 1;
+	const perPage = 100;
+	const maxPages = 100; // Can fetch many pages since no file requests
+
+	console.log(`Fetching metadata for ${owner}/${repo}`);
+
+	while (page <= maxPages) {
+		const url = `https://api.github.com/repos/${owner}/${repo}/pulls?state=closed&per_page=${perPage}&page=${page}&sort=created&direction=asc`;
+
+		const response = await fetch(url, {
+			headers: {
+				Authorization: `Bearer ${token}`,
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "Repo-Timeline-Worker",
+			},
+		});
+
+		if (!response.ok) {
+			if (response.status === 404) {
+				throw new Error(`Repository ${owner}/${repo} not found`);
+			}
+			if (response.status === 403) {
+				throw new Error("GitHub API rate limit exceeded");
+			}
+			throw new Error(`GitHub API error: ${response.status}`);
+		}
+
+		const prs: PullRequest[] = await response.json();
+
+		if (prs.length === 0) {
+			break;
+		}
+
+		// Filter for merged PRs and transform to simple format
+		const mergedPRs = prs
+			.filter((pr) => pr.merged_at)
+			.map((pr) => ({
+				number: pr.number,
+				title: pr.title,
+				user: { login: pr.user.login },
+				merged_at: pr.merged_at,
+			}));
+
+		allPRs.push(...mergedPRs);
+
+		// If we got fewer PRs than requested, we're done
+		if (prs.length < perPage) {
+			break;
+		}
+
+		page++;
+	}
+
+	console.log(`Fetched ${allPRs.length} PRs metadata for ${owner}/${repo}`);
+	return allPRs;
+}
+
+/**
+ * Fetch merged PRs from GitHub API (with files)
  */
 async function fetchMergedPRs(
 	token: string,
