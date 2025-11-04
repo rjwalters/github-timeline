@@ -81,14 +81,11 @@ export function RepoStatusBanner({
 
 	return (
 		<div
-			className={`py-2 px-4 border-b transition-all duration-500 ease-in-out ${
-				statusColors[effectiveRecommendation]
-			} ${
-				isAnimatingOut
-					? "transform translate-y-[-100%] opacity-0"
-					: "transform translate-y-0 opacity-100"
+			className={`overflow-hidden transition-all duration-500 ease-in-out ${
+				isAnimatingOut ? "max-h-0 opacity-0" : "max-h-24 opacity-100"
 			}`}
 		>
+			<div className={`py-2 px-4 border-b ${statusColors[effectiveRecommendation]}`}>
 			<div className="flex items-center gap-4 text-sm">
 				<div className="flex items-center gap-2">
 					<span className="text-lg">
@@ -136,6 +133,7 @@ export function RepoStatusBanner({
 						</div>
 					)}
 				</div>
+			</div>
 			</div>
 		</div>
 	);
