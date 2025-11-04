@@ -190,6 +190,9 @@ export function useRepoData({
 		if (!workerUrl || testMode) return;
 
 		const loadInstantFeedback = async () => {
+			console.log(
+				"[useRepoData Stage 1] Fetching cache status and repo summary",
+			);
 			dispatch({ type: "SET_LOADING_STAGE", stage: "cache-check" });
 
 			try {
@@ -211,7 +214,7 @@ export function useRepoData({
 				dispatch({ type: "SET_CACHE_STATUS", status: cacheStatus.cache });
 				dispatch({ type: "SET_REPO_SUMMARY", summary: summary.github });
 
-				// console.log(
+				console.log(
 					`[Stage 1] Cache: ${cacheStatus.cache.cachedPRs} PRs (${cacheStatus.status}) | Repo: ~${summary.github.estimatedTotalPRs} PRs`,
 				);
 
@@ -234,7 +237,7 @@ export function useRepoData({
 	// Stage 2: Load metadata to build timeline structure
 	useEffect(() => {
 		const loadMetadata = async () => {
-			// console.log("[useRepoData Stage 2] Loading metadata for:", repoPath);
+			console.log("[useRepoData Stage 2] Loading metadata for:", repoPath);
 			dispatch({ type: "SET_LOADING_STAGE", stage: "metadata" });
 
 			try {
@@ -245,7 +248,7 @@ export function useRepoData({
 				dispatch({ type: "SET_TIME_RANGE", range: metadata.timeRange });
 				dispatch({ type: "SET_CURRENT_TIME", time: metadata.timeRange.start });
 
-				// console.log(
+				console.log(
 					`[Stage 2] Metadata: ${metadata.prs.length} PRs from ${new Date(metadata.timeRange.start).toLocaleDateString()} to ${new Date(metadata.timeRange.end).toLocaleDateString()}`,
 				);
 			} catch (err) {
@@ -259,7 +262,7 @@ export function useRepoData({
 
 	const loadCommits = useCallback(
 		async (forceRefresh = false) => {
-			// console.log(
+			console.log(
 				"[useRepoData] loadCommits called - forceRefresh:",
 				forceRefresh,
 				"repoPath:",
@@ -275,7 +278,7 @@ export function useRepoData({
 			// Check if data was from cache
 			const cacheInfo = gitService.getCacheInfo();
 			const hasCache = cacheInfo.exists && !forceRefresh;
-			// console.log(
+			console.log(
 				"[useRepoData] Cache check - hasCache:",
 				hasCache,
 				"cacheInfo:",
@@ -284,7 +287,7 @@ export function useRepoData({
 
 			if (hasCache) {
 				// Load from cache immediately
-				// console.log("[useRepoData] Loading from cache...");
+				console.log("[useRepoData] Loading from cache...");
 				dispatch({ type: "SET_LOADING", loading: true });
 				dispatch({ type: "SET_LOAD_PROGRESS", progress: null });
 				try {
@@ -301,7 +304,7 @@ export function useRepoData({
 						type: "SET_RATE_LIMIT",
 						rateLimit: gitService.getRateLimitInfo(),
 					});
-					// console.log("[Cache] Loading complete");
+					console.log("[Cache] Loading complete");
 				} catch (err) {
 					console.error("Error loading commits:", err);
 					const error =
@@ -319,7 +322,7 @@ export function useRepoData({
 				}
 			} else {
 				// Stage 3: Incremental loading - show visualization as data arrives
-				// console.log(
+				console.log(
 					"[useRepoData Stage 3] No cache, loading incrementally from API...",
 				);
 				dispatch({ type: "SET_LOADING_STAGE", stage: "incremental" });
@@ -346,7 +349,7 @@ export function useRepoData({
 
 					// If we hit an error (like rate limiting), try to load from cache
 					if (cacheInfo.exists) {
-						// console.log("Falling back to cached data due to error");
+						console.log("Falling back to cached data due to error");
 						try {
 							const cachedCommits = await gitService.getCommitHistory(
 								undefined, // no progress updates needed
@@ -400,7 +403,7 @@ export function useRepoData({
 					dispatch({ type: "SET_BACKGROUND_LOADING", loading: false });
 					dispatch({ type: "SET_LOAD_PROGRESS", progress: null });
 					dispatch({ type: "SET_LOADING_STAGE", stage: "complete" });
-					// console.log("[Stage 3] Incremental loading complete");
+					console.log("[Stage 3] Incremental loading complete");
 				}
 			}
 		},

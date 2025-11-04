@@ -77,7 +77,7 @@ export class GitService {
 			end: Math.max(...timestamps),
 		};
 
-		// console.log(
+		console.log(
 			`Metadata: ${prs.length} PRs from ${new Date(timeRange.start).toLocaleDateString()} to ${new Date(timeRange.end).toLocaleDateString()}`,
 		);
 
@@ -106,7 +106,7 @@ export class GitService {
 		if (!forceRefresh) {
 			const cached = StorageService.loadCommits(cacheKey);
 			if (cached) {
-				// console.log(
+				console.log(
 					`Loaded ${cached.length} commits from cache for ${this.repoPath}`,
 				);
 				return cached;
@@ -124,7 +124,7 @@ export class GitService {
 			// Try cache as fallback
 			const cached = StorageService.loadCommits(cacheKey);
 			if (cached) {
-				// console.log("Using stale cache as fallback");
+				console.log("Using stale cache as fallback");
 				return cached;
 			}
 			// Return demo data as last resort
@@ -142,7 +142,7 @@ export class GitService {
 		// Check if repoPath is in GitHub format (owner/repo)
 		if (/^[^/]+\/[^/]+$/.test(this.repoPath)) {
 			const source = this.workerUrl ? "Worker Cache" : "GitHub API";
-			// console.log(`Fetching from ${source}: ${this.repoPath}`);
+			console.log(`Fetching from ${source}: ${this.repoPath}`);
 			try {
 				this.githubService = new GitHubApiService(
 					this.repoPath,
@@ -164,7 +164,7 @@ export class GitService {
 							// Save to cache incrementally
 							const calculated = this.calculateSizeChanges(partialCommits);
 							StorageService.saveCommits(cacheKey, calculated);
-							// console.log(
+							console.log(
 								`Saved ${calculated.length} commits to cache incrementally`,
 							);
 						},
@@ -190,7 +190,7 @@ export class GitService {
 			const commits = this.parseCommitsWithProgress(data, onProgress);
 			return commits;
 		} catch (_error) {
-			// console.log("API not available, using demo data");
+			console.log("API not available, using demo data");
 			// Return demo data for development
 			const demoData = getDemoCommits();
 
