@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { LoadProgress } from "../types";
 
 interface RepoStatusBannerProps {
@@ -26,6 +27,8 @@ export function RepoStatusBanner({
 	backgroundLoading = false,
 	loadProgress = null,
 }: RepoStatusBannerProps) {
+	const [isVisible, setIsVisible] = useState(true);
+	const [isAnimatingOut, setIsAnimatingOut] = useState(false);
 	const statusColors = {
 		ready: "bg-green-900 border-green-600 text-green-200",
 		partial: "bg-yellow-900 border-yellow-600 text-yellow-200",
@@ -50,9 +53,41 @@ export function RepoStatusBanner({
 			? "ready"
 			: recommendation;
 
+	// Auto-hide banner when ready (after 3 seconds)
+	useEffect(() => {
+		if (effectiveRecommendation === "ready" && !backgroundLoading) {
+			// Wait 3 seconds, then start slide-out animation
+			const hideTimer = setTimeout(() => {
+				setIsAnimatingOut(true);
+				// After animation completes (500ms), hide completely
+				setTimeout(() => {
+					setIsVisible(false);
+				}, 500);
+			}, 3000);
+
+			return () => clearTimeout(hideTimer);
+		}
+		// Reset visibility if status changes back to non-ready
+		if (effectiveRecommendation !== "ready" || backgroundLoading) {
+			setIsVisible(true);
+			setIsAnimatingOut(false);
+		}
+	}, [effectiveRecommendation, backgroundLoading]);
+
+	// Don't render if hidden
+	if (!isVisible) {
+		return null;
+	}
+
 	return (
 		<div
-			className={`py-2 px-4 border-b ${statusColors[effectiveRecommendation]}`}
+			className={`py-2 px-4 border-b transition-all duration-500 ease-in-out ${
+				statusColors[effectiveRecommendation]
+			} ${
+				isAnimatingOut
+					? "transform translate-y-[-100%] opacity-0"
+					: "transform translate-y-0 opacity-100"
+			}`}
 		>
 			<div className="flex items-center gap-4 text-sm">
 				<div className="flex items-center gap-2">
