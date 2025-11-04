@@ -664,4 +664,107 @@ describe("useRepoData", () => {
 			});
 		});
 	});
+
+	describe("Stage 1: instant feedback with workerUrl", () => {
+		const mockFetchCacheStatus = vi.fn();
+		const mockFetchRepoSummary = vi.fn();
+
+		beforeEach(() => {
+			// Mock the dynamic import of GitHubApiService
+			vi.doMock("../services/githubApiService", () => ({
+				GitHubApiService: vi.fn(function MockGitHubApiService() {
+					return {
+						fetchCacheStatus: mockFetchCacheStatus,
+						fetchRepoSummary: mockFetchRepoSummary,
+					};
+				}),
+			}));
+
+			mockFetchCacheStatus.mockResolvedValue({
+				cache: {
+					exists: true,
+					cachedPRs: 50,
+					ageSeconds: 100,
+					lastPRNumber: 100,
+					firstPR: { number: 1, merged_at: "2024-01-01T00:00:00Z" },
+					lastPR: { number: 100, merged_at: "2024-02-01T00:00:00Z" },
+				},
+				status: "ready",
+			});
+
+			mockFetchRepoSummary.mockResolvedValue({
+				github: {
+					estimatedTotalPRs: 150,
+					hasMoreThan100PRs: true,
+					firstMergedPR: { number: 1, merged_at: "2024-01-01T00:00:00Z" },
+				},
+			});
+		});
+
+		it("should load instant feedback when workerUrl is provided", async () => {
+			const { result } = renderHook(() =>
+				useRepoData({
+					repoPath: "facebook/react",
+					workerUrl: "https://test-worker.dev",
+					testMode: false,
+				}),
+			);
+
+			await waitFor(() => {
+				expect(result.current.cacheStatus).not.toBeNull();
+			});
+
+			expect(result.current.cacheStatus?.cachedPRs).toBe(50);
+			expect(result.current.repoSummary?.estimatedTotalPRs).toBe(150);
+			expect(result.current.repoStatus).not.toBeNull();
+			expect(result.current.repoStatus?.recommendation).toBe("ready");
+		});
+
+		it("should handle Stage 1 errors gracefully", async () => {
+			mockFetchCacheStatus.mockRejectedValue(new Error("Network error"));
+
+			const { result } = renderHook(() =>
+				useRepoData({
+					repoPath: "facebook/react",
+					workerUrl: "https://test-worker.dev",
+					testMode: false,
+				}),
+			);
+
+			// Should not crash, error is non-fatal
+			await waitFor(() => {
+				expect(result.current.loadingStage).not.toBe("initial");
+			});
+
+			// Stage 1 error shouldn't affect other stages
+			expect(result.current.error).toBeNull();
+		});
+
+		it("should skip Stage 1 when workerUrl is not provided", () => {
+			const { result } = renderHook(() =>
+				useRepoData({
+					repoPath: "facebook/react",
+					testMode: false,
+				}),
+			);
+
+			// Should not have called the Stage 1 endpoints
+			expect(result.current.cacheStatus).toBeNull();
+			expect(result.current.repoSummary).toBeNull();
+		});
+
+		it("should skip Stage 1 in test mode", () => {
+			const { result } = renderHook(() =>
+				useRepoData({
+					repoPath: "facebook/react",
+					workerUrl: "https://test-worker.dev",
+					testMode: true,
+				}),
+			);
+
+			// Should not have loaded Stage 1 data in test mode
+			expect(result.current.cacheStatus).toBeNull();
+			expect(result.current.repoSummary).toBeNull();
+		});
+	});
 });
