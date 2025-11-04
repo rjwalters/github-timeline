@@ -1,62 +1,16 @@
 import type { CommitData, LoadProgress, RateLimitInfo } from "../types";
+import type {
+	GitHubPR,
+	GitHubCommit,
+	GitHubCommitFile,
+	GitHubWorkerCommit,
+	GitHubPRFile,
+} from "../types/github";
 import { FileStateTracker } from "../utils/fileStateTracker";
-import { buildEdges, buildFileTree, FILE_TREE_BUILDER_VERSION } from "../utils/fileTreeBuilder"; // Build tree/edges
+import { FILE_TREE_BUILDER_VERSION } from "../utils/fileTreeBuilder";
+import { buildCommitFromFileState } from "../utils/commitBuilder";
 
 console.log(`📦 Loaded fileTreeBuilder version: ${FILE_TREE_BUILDER_VERSION}`);
-
-export interface GitHubPR {
-	number: number;
-	title: string;
-	merged_at: string | null;
-	merge_commit_sha?: string | null;
-	user: {
-		login: string;
-	};
-	files_url: string;
-	files?: GitHubPRFile[]; // Optional - included when fetched from worker
-}
-
-export interface GitHubCommit {
-	sha: string;
-	commit: {
-		message: string;
-		author: {
-			name: string;
-			date: string;
-		};
-	};
-	files?: GitHubCommitFile[];
-}
-
-export interface GitHubCommitFile {
-	filename: string;
-	status: "added" | "removed" | "modified" | "renamed";
-	additions: number;
-	deletions: number;
-	changes: number;
-	previous_filename?: string;
-}
-
-export interface GitHubWorkerCommit {
-	sha: string;
-	commit: {
-		message: string;
-		author: {
-			name: string;
-			date: string;
-		};
-	};
-	files?: GitHubCommitFile[];
-}
-
-export interface GitHubPRFile {
-	filename: string;
-	status: "added" | "removed" | "modified" | "renamed";
-	additions: number;
-	deletions: number;
-	changes: number;
-	previous_filename?: string;
-}
 
 /**
  * Service for fetching repository data from GitHub's REST API
@@ -517,18 +471,13 @@ export class GitHubApiService {
 			}
 
 			// Build commit snapshot from current file state
-			const fileData = fileStateTracker.getFileData();
-			const files = buildFileTree(fileData);
-			const edges = buildEdges(fileData);
-
-			const commit: CommitData = {
-				hash: workerCommit.sha.substring(0, 7),
-				message: workerCommit.commit.message.split("\n")[0],
-				author: workerCommit.commit.author.name,
-				date: new Date(workerCommit.commit.author.date),
-				files,
-				edges,
-			};
+			const commit = buildCommitFromFileState(
+				workerCommit.sha.substring(0, 7),
+				workerCommit.commit.message.split("\n")[0],
+				workerCommit.commit.author.name,
+				workerCommit.commit.author.date,
+				fileStateTracker,
+			);
 
 			commits.push(commit);
 
@@ -617,18 +566,13 @@ export class GitHubApiService {
 				}
 
 				// Build commit snapshot from current file state
-				const fileData = fileStateTracker.getFileData();
-				const files = buildFileTree(fileData);
-				const edges = buildEdges(fileData);
-
-				const commit: CommitData = {
-					hash: workerCommit.sha.substring(0, 7),
-					message: workerCommit.commit.message.split("\n")[0],
-					author: workerCommit.commit.author.name,
-					date: new Date(workerCommit.commit.author.date),
-					files,
-					edges,
-				};
+				const commit = buildCommitFromFileState(
+					workerCommit.sha.substring(0, 7),
+					workerCommit.commit.message.split("\n")[0],
+					workerCommit.commit.author.name,
+					workerCommit.commit.author.date,
+					fileStateTracker,
+				);
 
 				commits.push(commit);
 
@@ -686,21 +630,15 @@ export class GitHubApiService {
 			fileStateTracker.updateFromPRFiles(prFiles);
 
 			// Build commit snapshot from current file state using shared utilities
-			const fileData = fileStateTracker.getFileData();
-
-			const files = buildFileTree(fileData);
-			const edges = buildEdges(fileData);
-
-			const commit: CommitData = {
-				hash: pr.merge_commit_sha
+			const commit = buildCommitFromFileState(
+				pr.merge_commit_sha
 					? pr.merge_commit_sha.substring(0, 7)
 					: `pr-${pr.number}`,
-				message: pr.title,
-				author: pr.user.login,
-				date: new Date(pr.merged_at || Date.now()),
-				files,
-				edges,
-			};
+				pr.title,
+				pr.user.login,
+				pr.merged_at || new Date(Date.now()).toISOString(),
+				fileStateTracker,
+			);
 
 			commits.push(commit);
 
@@ -810,19 +748,13 @@ export class GitHubApiService {
 			}
 
 			// Build commit snapshot from current file state
-			const fileData = fileStateTracker.getFileData();
-			const files = buildFileTree(fileData);
-			// Build edges from the file data (which infers directory structure)
-			const edges = buildEdges(fileData);
-
-			const commit: CommitData = {
-				hash: commitDetails.sha.substring(0, 7),
-				message: commitDetails.commit.message.split("\n")[0],
-				author: commitDetails.commit.author.name,
-				date: new Date(commitDetails.commit.author.date),
-				files,
-				edges,
-			};
+			const commit = buildCommitFromFileState(
+				commitDetails.sha.substring(0, 7),
+				commitDetails.commit.message.split("\n")[0],
+				commitDetails.commit.author.name,
+				commitDetails.commit.author.date,
+				fileStateTracker,
+			);
 
 			commits.push(commit);
 

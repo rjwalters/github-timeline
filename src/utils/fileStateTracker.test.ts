@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { GitHubPRFile } from "../services/githubApiService";
+import type { GitHubPRFile } from "../types/github";
 import { FileStateTracker } from "./fileStateTracker";
 
 describe("FileStateTracker", () => {

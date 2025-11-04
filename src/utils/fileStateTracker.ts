@@ -1,4 +1,4 @@
-import type { GitHubPRFile } from "../services/githubApiService";
+import type { GitHubPRFile } from "../types/github";
 
 /**
  * Tracks cumulative file state across multiple PR changes
