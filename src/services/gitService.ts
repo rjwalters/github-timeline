@@ -134,7 +134,6 @@ export class GitService {
 	): Promise<CommitData[]> {
 		// Check if repoPath is in GitHub format (owner/repo)
 		if (/^[^/]+\/[^/]+$/.test(this.repoPath)) {
-			const source = this.workerUrl ? "Worker Cache" : "GitHub API";
 			try {
 				this.githubService = new GitHubApiService(
 					this.repoPath,
