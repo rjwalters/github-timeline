@@ -1,16 +1,16 @@
 interface RepoStatusBannerProps {
 	github: {
-		totalPRs: number;
-		firstPR: number | null;
-		lastPR: number | null;
-		oldestMerge: string | null;
-		newestMerge: string | null;
+		estimatedTotalPRs: number;
+		hasMoreThan100PRs: boolean;
+		firstMergedPR: { number: number; merged_at: string } | null;
 	};
 	cache: {
+		exists: boolean;
 		cachedPRs: number;
-		coveragePercent: number;
 		ageSeconds: number | null;
 		lastPRNumber: number | null;
+		firstPR: { number: number; merged_at: string } | null;
+		lastPR: { number: number; merged_at: string } | null;
 	};
 	recommendation: "ready" | "partial" | "fetching";
 }
@@ -55,26 +55,30 @@ export function RepoStatusBanner({
 				</div>
 				<div className="flex items-center gap-4 flex-wrap">
 					<div>
-						<strong>GitHub:</strong> {github.totalPRs} PRs
-						{github.firstPR && github.lastPR && (
+						<strong>GitHub:</strong> ~{github.estimatedTotalPRs} PRs
+						{github.firstMergedPR && (
 							<span className="ml-1 text-xs opacity-75">
-								(#{github.firstPR} - #{github.lastPR})
+								(from #{github.firstMergedPR.number})
 							</span>
 						)}
 					</div>
 					<div>
-						<strong>Cached:</strong> {cache.cachedPRs} PRs (
-						{cache.coveragePercent}%)
+						<strong>Cached:</strong> {cache.cachedPRs} PRs
+						{cache.exists && github.estimatedTotalPRs > 0 && (
+							<span className="ml-1 text-xs opacity-75">
+								({Math.round((cache.cachedPRs / github.estimatedTotalPRs) * 100)}%)
+							</span>
+						)}
 						{cache.ageSeconds && (
 							<span className="ml-1 text-xs opacity-75">
 								• {Math.round(cache.ageSeconds / 60)}m ago
 							</span>
 						)}
 					</div>
-					{github.oldestMerge && github.newestMerge && (
+					{cache.firstPR && cache.lastPR && (
 						<div className="text-xs opacity-75">
-							{new Date(github.oldestMerge).toLocaleDateString()} -{" "}
-							{new Date(github.newestMerge).toLocaleDateString()}
+							{new Date(cache.firstPR.merged_at).toLocaleDateString()} -{" "}
+							{new Date(cache.lastPR.merged_at).toLocaleDateString()}
 						</div>
 					)}
 				</div>
