@@ -8,11 +8,12 @@ import type { CommitData } from "../types";
 
 interface CacheStatus {
 	exists: boolean;
-	cachedPRs: number;
+	cachedCommits: number;
 	ageSeconds: number | null;
-	lastPRNumber: number | null;
-	firstPR: { number: number; merged_at: string } | null;
-	lastPR: { number: number; merged_at: string } | null;
+	lastCommitSha: string | null;
+	defaultBranch: string | null;
+	firstCommit: { sha: string; date: string } | null;
+	lastCommit: { sha: string; date: string } | null;
 }
 
 interface RepoSummary {

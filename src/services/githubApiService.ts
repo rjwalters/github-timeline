@@ -85,14 +85,14 @@ export class GitHubApiService {
 	}
 
 	/**
-	 * Fetch metadata from Cloudflare Worker (fast, all PRs without files)
+	 * Fetch metadata from Cloudflare Worker (fast, all commits without files)
 	 */
 	async fetchMetadata(): Promise<
 		Array<{
-			number: number;
-			title: string;
-			user: { login: string };
-			merged_at: string;
+			sha: string;
+			message: string;
+			author: string;
+			date: string;
 		}>
 	> {
 		if (!this.workerUrl) {
@@ -121,11 +121,12 @@ export class GitHubApiService {
 	async fetchCacheStatus(): Promise<{
 		cache: {
 			exists: boolean;
-			cachedPRs: number;
+			cachedCommits: number;
 			ageSeconds: number | null;
-			lastPRNumber: number | null;
-			firstPR: { number: number; merged_at: string } | null;
-			lastPR: { number: number; merged_at: string } | null;
+			lastCommitSha: string | null;
+			defaultBranch: string | null;
+			firstCommit: { sha: string; date: string } | null;
+			lastCommit: { sha: string; date: string } | null;
 		};
 		status: "ready" | "partial" | "fetching";
 	}> {

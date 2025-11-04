@@ -62,11 +62,12 @@ export class GitService {
 
 		const metadata = await this.githubService.fetchMetadata();
 
-		const prs = metadata.map((pr) => ({
-			number: pr.number,
-			title: pr.title,
-			author: pr.user.login,
-			date: new Date(pr.merged_at),
+		// Metadata now returns commits, not PRs
+		const prs = metadata.map((commit, index) => ({
+			number: index + 1, // Use index as commit number since commits don't have PR numbers
+			title: commit.message,
+			author: commit.author,
+			date: new Date(commit.date),
 		}));
 
 		// Calculate time range

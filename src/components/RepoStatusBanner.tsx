@@ -9,11 +9,12 @@ interface RepoStatusBannerProps {
 	};
 	cache: {
 		exists: boolean;
-		cachedPRs: number;
+		cachedCommits: number;
 		ageSeconds: number | null;
-		lastPRNumber: number | null;
-		firstPR: { number: number; merged_at: string } | null;
-		lastPR: { number: number; merged_at: string } | null;
+		lastCommitSha: string | null;
+		defaultBranch: string | null;
+		firstCommit: { sha: string; date: string } | null;
+		lastCommit: { sha: string; date: string } | null;
 	};
 	recommendation: "ready" | "partial" | "fetching";
 	backgroundLoading?: boolean;
@@ -114,12 +115,12 @@ export function RepoStatusBanner({
 							)}
 						</div>
 						<div>
-							<strong>Cached:</strong> {cache.cachedPRs} PRs
+							<strong>Cached:</strong> {cache.cachedCommits} commits
 							{cache.exists && github.estimatedTotalPRs > 0 && (
 								<span className="ml-1 text-xs opacity-75">
 									(
 									{Math.round(
-										(cache.cachedPRs / github.estimatedTotalPRs) * 100,
+										(cache.cachedCommits / github.estimatedTotalPRs) * 100,
 									)}
 									%)
 								</span>
@@ -130,10 +131,10 @@ export function RepoStatusBanner({
 								</span>
 							)}
 						</div>
-						{cache.firstPR && cache.lastPR && (
+						{cache.firstCommit && cache.lastCommit && (
 							<div className="text-xs opacity-75">
-								{new Date(cache.firstPR.merged_at).toLocaleDateString()} -{" "}
-								{new Date(cache.lastPR.merged_at).toLocaleDateString()}
+								{new Date(cache.firstCommit.date).toLocaleDateString()} -{" "}
+								{new Date(cache.lastCommit.date).toLocaleDateString()}
 							</div>
 						)}
 					</div>
