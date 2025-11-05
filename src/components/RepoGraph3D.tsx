@@ -4,20 +4,28 @@ import {
 	forwardRef,
 	useEffect,
 	useImperativeHandle,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { FileEdge, FileNode } from "../types";
 import { ForceSimulation } from "../utils/forceSimulation";
+import { limitGraph } from "../utils/graphLimiter";
 import { FileEdge3D } from "./FileEdge3D";
 import { FileNode3D } from "./FileNode3D";
 import { PerformanceStatsOverlay } from "./PerformanceStats";
+import {
+	PerformanceSettings,
+	PerformanceSettingsModal,
+} from "./PerformanceSettingsModal";
 
 interface RepoGraph3DProps {
 	nodes: FileNode[];
 	edges: FileEdge[];
 	onNodeClick?: (node: FileNode) => void;
+	performanceSettings: PerformanceSettings;
+	onPerformanceSettingsChange: (settings: PerformanceSettings) => void;
 }
 
 export interface RepoGraph3DHandle {
@@ -25,9 +33,13 @@ export interface RepoGraph3DHandle {
 }
 
 export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
-	function RepoGraph3D({ nodes, edges, onNodeClick }, ref) {
+	function RepoGraph3D(
+		{ nodes, edges, onNodeClick, performanceSettings, onPerformanceSettingsChange },
+		ref,
+	) {
 		const [simulationNodes, setSimulationNodes] = useState<FileNode[]>(nodes);
 		const [contextLost, setContextLost] = useState(false);
+		const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 		const simulationRef = useRef<ForceSimulation | null>(null);
 		const animationFrameRef = useRef<number>();
 		const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -43,9 +55,19 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 			},
 		}));
 
+		// Apply performance limits to the graph
+		const limitedGraph = useMemo(() => {
+			return limitGraph(nodes, edges, {
+				maxNodes: performanceSettings.maxNodes,
+				maxEdges: performanceSettings.maxEdges,
+			});
+		}, [nodes, edges, performanceSettings.maxNodes, performanceSettings.maxEdges]);
+
 		useEffect(() => {
+			const { nodes: limitedNodes, edges: limitedEdges } = limitedGraph;
+
 			// Create a deep copy of nodes to avoid mutating props
-			const nodesCopy = nodes.map((n) => ({ ...n }));
+			const nodesCopy = limitedNodes.map((n) => ({ ...n }));
 
 			// Separate deleted nodes from active nodes
 			const deletedNodes: FileNode[] = [];
@@ -77,7 +99,7 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 			});
 
 			// Initialize or update simulation with only active nodes (not deleted)
-			simulationRef.current = new ForceSimulation(activeNodes, edges, {
+			simulationRef.current = new ForceSimulation(activeNodes, limitedEdges, {
 				strength: 1.0, // Spring stiffness (10x stronger to pull nodes closer)
 				distance: 15, // Ideal spring distance (reduced for tighter layout)
 				iterations: 500, // More iterations for better convergence
@@ -144,7 +166,7 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 					);
 				}
 			};
-		}, [nodes, edges]);
+		}, [limitedGraph]);
 
 		// Handle WebGL context loss/restore
 		useEffect(() => {
@@ -254,7 +276,7 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 					<pointLight position={[-100, -100, -100]} intensity={0.5} />
 
 					{/* Render edges first so they appear behind nodes */}
-					{edges.map((edge, i) => {
+					{limitedGraph.edges.map((edge, i) => {
 						const source = nodeMap.get(edge.source);
 						const target = nodeMap.get(edge.target);
 						// Include node positions in key to force re-render when positions change
@@ -273,13 +295,26 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 						dampingFactor={0.05}
 						rotateSpeed={0.5}
 						zoomSpeed={0.5}
+						minDistance={50}
+						maxDistance={800}
 					/>
 				</Canvas>
 
 				{/* Performance stats overlay */}
 				<PerformanceStatsOverlay
 					nodeCount={simulationNodes.length}
-					edgeCount={edges.length}
+					edgeCount={limitedGraph.edges.length}
+					onClick={() => setIsSettingsModalOpen(true)}
+				/>
+
+				{/* Performance settings modal */}
+				<PerformanceSettingsModal
+					isOpen={isSettingsModalOpen}
+					onClose={() => setIsSettingsModalOpen(false)}
+					settings={performanceSettings}
+					onSettingsChange={onPerformanceSettingsChange}
+					currentNodeCount={nodes.length}
+					currentEdgeCount={edges.length}
 				/>
 			</div>
 		);

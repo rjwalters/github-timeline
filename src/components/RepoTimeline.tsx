@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TEST_MODE } from "../config";
+import { usePerformanceSettings } from "../hooks/usePerformanceSettings";
 import { usePlaybackTimer } from "../hooks/usePlaybackTimer";
 import { useRepoData } from "../hooks/useRepoData";
 import type { RepoTimelineProps } from "../lib/types";
@@ -71,6 +72,9 @@ export function RepoTimeline({
 	);
 	const [isBannerVisible, setIsBannerVisible] = useState(true);
 	const graphRef = useRef<RepoGraph3DHandle>(null);
+
+	// Performance settings
+	const [performanceSettings, setPerformanceSettings] = usePerformanceSettings();
 
 	const handleResetView = useCallback(() => {
 		graphRef.current?.resetCamera();
@@ -193,6 +197,8 @@ export function RepoTimeline({
 					nodes={currentCommit.files}
 					edges={currentCommit.edges}
 					onNodeClick={handleNodeClick}
+					performanceSettings={performanceSettings}
+					onPerformanceSettingsChange={setPerformanceSettings}
 				/>
 			</div>
 

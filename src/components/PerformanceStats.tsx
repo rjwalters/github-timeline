@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 interface PerformanceStatsProps {
 	nodeCount: number;
 	edgeCount: number;
+	onClick?: () => void;
 }
 
 /**
@@ -12,8 +13,10 @@ interface PerformanceStatsProps {
 export function PerformanceStatsOverlay({
 	nodeCount,
 	edgeCount,
+	onClick,
 }: PerformanceStatsProps) {
 	const [fps, setFps] = useState(60);
+	const [isHovered, setIsHovered] = useState(false);
 	const frameCountRef = useRef(0);
 	const lastTimeRef = useRef(performance.now());
 	const rafRef = useRef<number>();
@@ -56,21 +59,29 @@ export function PerformanceStatsOverlay({
 
 	return (
 		<div
+			onClick={onClick}
+			onMouseEnter={() => setIsHovered(true)}
+			onMouseLeave={() => setIsHovered(false)}
 			style={{
 				position: "absolute",
 				bottom: "12px",
 				right: "12px",
-				background: "rgba(15, 23, 42, 0.9)",
+				background: isHovered
+					? "rgba(15, 23, 42, 0.95)"
+					: "rgba(15, 23, 42, 0.9)",
 				backdropFilter: "blur(8px)",
-				border: "1px solid rgba(148, 163, 184, 0.2)",
+				border: isHovered
+					? "1px solid rgba(148, 163, 184, 0.4)"
+					: "1px solid rgba(148, 163, 184, 0.2)",
 				borderRadius: "6px",
 				padding: "8px 12px",
 				fontFamily: "monospace",
 				fontSize: "11px",
 				color: "#94a3b8",
-				pointerEvents: "none",
+				cursor: onClick ? "pointer" : "default",
 				userSelect: "none",
 				zIndex: 10,
+				transition: "all 0.2s ease",
 			}}
 		>
 			<div style={{ marginBottom: "4px" }}>
