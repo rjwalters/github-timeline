@@ -11,6 +11,10 @@ import {
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { FileEdge, FileNode } from "../types";
 import { ForceSimulation } from "../utils/forceSimulation";
+import {
+	calculateGraphBounds,
+	calculateOptimalZoomLimits,
+} from "../utils/graphBounds";
 import { limitGraph } from "../utils/graphLimiter";
 import { FileEdge3D } from "./FileEdge3D";
 import { FileNode3D } from "./FileNode3D";
@@ -40,6 +44,7 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 		const [simulationNodes, setSimulationNodes] = useState<FileNode[]>(nodes);
 		const [contextLost, setContextLost] = useState(false);
 		const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+		const [zoomLimits, setZoomLimits] = useState({ minDistance: 50, maxDistance: 800 });
 		const simulationRef = useRef<ForceSimulation | null>(null);
 		const animationFrameRef = useRef<number>();
 		const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -122,6 +127,23 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 						previousNodesRef.current = new Map(
 							allNodes.map((n) => [n.id, { ...n }]),
 						);
+
+						// Calculate graph bounds and update zoom limits
+						const bounds = calculateGraphBounds(allNodes);
+						const optimalLimits = calculateOptimalZoomLimits(bounds.maxDistance);
+						setZoomLimits(optimalLimits);
+
+						// Log bounds for debugging
+						console.log(
+							`📐 Graph bounds: max distance = ${bounds.maxDistance.toFixed(1)}, ` +
+								`average = ${bounds.averageDistance.toFixed(1)}, ` +
+								`zoom limits = ${optimalLimits.minDistance.toFixed(1)} - ${optimalLimits.maxDistance.toFixed(1)}`,
+						);
+						if (bounds.farthestNode) {
+							console.log(
+								`  Farthest node: ${bounds.farthestNode.path} at (${bounds.farthestNode.x?.toFixed(1)}, ${bounds.farthestNode.y?.toFixed(1)}, ${bounds.farthestNode.z?.toFixed(1)})`,
+							);
+						}
 					}
 					return;
 				}
@@ -295,8 +317,8 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 						dampingFactor={0.05}
 						rotateSpeed={0.5}
 						zoomSpeed={0.5}
-						minDistance={50}
-						maxDistance={800}
+						minDistance={zoomLimits.minDistance}
+						maxDistance={zoomLimits.maxDistance}
 					/>
 				</Canvas>
 
