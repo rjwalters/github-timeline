@@ -1,48 +1,8 @@
-import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 
 interface PerformanceStatsProps {
 	nodeCount: number;
 	edgeCount: number;
-}
-
-/**
- * Performance statistics overlay for the 3D visualization
- * Displays FPS, node count, and edge count in the bottom right corner
- */
-export function PerformanceStats({
-	nodeCount,
-	edgeCount,
-}: PerformanceStatsProps) {
-	const [fps, setFps] = useState(60);
-	const frameCountRef = useRef(0);
-	const lastTimeRef = useRef(performance.now());
-
-	useFrame(() => {
-		frameCountRef.current++;
-
-		const currentTime = performance.now();
-		const elapsed = currentTime - lastTimeRef.current;
-
-		// Update FPS every second
-		if (elapsed >= 1000) {
-			const currentFps = Math.round(
-				(frameCountRef.current * 1000) / elapsed,
-			);
-			setFps(currentFps);
-			frameCountRef.current = 0;
-			lastTimeRef.current = currentTime;
-		}
-	});
-
-	// Get FPS color based on performance
-	const getFpsColor = () => {
-		if (fps >= 55) return "#10b981"; // green
-		if (fps >= 30) return "#f59e0b"; // orange
-		return "#ef4444"; // red
-	};
-
-	return null; // This component doesn't render anything in the 3D scene
 }
 
 /**
