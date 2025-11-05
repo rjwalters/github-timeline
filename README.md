@@ -1,7 +1,10 @@
 # Repo Timeline Visualizer
 
+[![npm version](https://img.shields.io/npm/v/react-github-timeline.svg)](https://www.npmjs.com/package/react-github-timeline)
+[![npm downloads](https://img.shields.io/npm/dm/react-github-timeline.svg)](https://www.npmjs.com/package/react-github-timeline)
 [![Test & Coverage](https://github.com/rjwalters/github-timeline/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/github-timeline/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/rjwalters/github-timeline/branch/main/graph/badge.svg)](https://codecov.io/gh/rjwalters/github-timeline)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A 3D visualization tool for exploring Git repository evolution over time. Watch your codebase grow, change, and evolve with an interactive force-directed graph showing files and directories as connected nodes in 3D space.
 
