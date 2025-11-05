@@ -324,6 +324,14 @@ Update `src/config.ts` with your worker URL, and you're done!
 - Branch visualization
 - Interactive file diff viewer
 
+## Publishing
+
+Ready to publish? See **[PUBLISHING_CHECKLIST.md](PUBLISHING_CHECKLIST.md)** for the complete guide including:
+- Testing the package locally with `npm pack`
+- Publishing to npm registry
+- Post-publish verification
+- Creating GitHub releases
+
 ## License
 
 MIT
