@@ -159,29 +159,6 @@ describe("useRepoData", () => {
 			});
 		});
 
-		it.skip("should update time range from metadata", async () => {
-			const timeRange = {
-				start: new Date("2024-01-01").getTime(),
-				end: new Date("2024-12-31").getTime(),
-			};
-
-			mockGetMetadata.mockResolvedValue({
-				prs: [],
-				timeRange,
-			});
-
-			const { result } = renderHook(() =>
-				useRepoData({
-					repoPath: "facebook/react",
-					testMode: true,
-				}),
-			);
-
-			await waitFor(() => {
-				expect(result.current.timeRange).toEqual(timeRange);
-			});
-		});
-
 		it("should handle metadata loading errors gracefully", async () => {
 			mockGetMetadata.mockRejectedValue(new Error("Metadata error"));
 
