@@ -327,6 +327,35 @@ Update `src/config.ts` with your worker URL, and you're done!
 - Branch visualization
 - Interactive file diff viewer
 
+## Related Projects
+
+This project joins a rich ecosystem of repository visualization tools. Here are some other great projects in this space:
+
+### Desktop & CLI Tools
+
+- **[Gource](https://gource.io/)** (12.4k ⭐) - The gold standard for repository visualization. Creates beautiful animated trees showing developers working on files over time. Desktop app supporting Git, SVN, Mercurial, Bazaar, and CVS. Perfect for creating presentation videos of your project's evolution.
+
+- **[git-story](https://initialcommit.com/tools/git-story)** - Python CLI tool that creates MP4 video animations of Git commit history. Great for generating videos of your repository's development.
+
+- **[City Blocks](https://github.com/cjayawickrema/city-blocks)** - Visualizes repositories as 3D cities where file sizes and commit frequency are represented as buildings. Unique metaphor for understanding codebase structure.
+
+### Web-based Tools
+
+- **[GitHub Next Repo Visualizer](https://github.com/githubocto/repo-visualizer)** - React + D3.js visualization using circular pack layout. Creates SVG diagrams showing file structure with color-coded file types.
+
+- **[GitDiagram](https://gitdiagram.com/)** - AI-powered tool that transforms repositories into interactive architecture diagrams using Claude AI.
+
+### How This Project Differs
+
+**react-github-timeline** focuses on:
+- 🌐 **Embeddable React component** - Not a standalone app, but a component you can embed in your own React applications
+- 📊 **Time-based evolution** - Shows how files change over time with playback controls, not just current state
+- 🎮 **Interactive 3D physics** - Real-time force-directed graph with d3-force-3d simulation
+- 🔌 **GitHub-native** - Direct GitHub API integration with built-in caching and rate limit handling
+- 📦 **npm package** - Easy to install and integrate: `npm install react-github-timeline`
+
+We're inspired by these projects and grateful for the visualization work that came before us!
+
 ## Publishing
 
 Ready to publish? See **[PUBLISHING_CHECKLIST.md](PUBLISHING_CHECKLIST.md)** for the complete guide including:
