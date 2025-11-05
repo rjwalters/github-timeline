@@ -18,6 +18,9 @@ interface TimelineScrubberProps {
 	playbackDirection: PlaybackDirection;
 	onDirectionChange: (direction: PlaybackDirection) => void;
 	onResetView?: () => void;
+	hasMoreCommits?: boolean;
+	backgroundLoading?: boolean;
+	onLoadMore?: () => void;
 }
 
 export function TimelineScrubber({
@@ -32,6 +35,9 @@ export function TimelineScrubber({
 	playbackDirection,
 	onDirectionChange,
 	onResetView,
+	hasMoreCommits = false,
+	backgroundLoading = false,
+	onLoadMore,
 }: TimelineScrubberProps) {
 	const currentIndex = getCurrentIndex(commits, currentTime);
 
@@ -56,15 +62,28 @@ export function TimelineScrubber({
 			// Jump directly to the commit time
 			const targetTime = commits[currentIndex + 1].date.getTime();
 			onTimeChange(targetTime);
+		} else if (hasMoreCommits && onLoadMore) {
+			// At the last commit but more are available - trigger loading
+			onLoadMore();
 		}
 	};
 
 	const handleSkipToStart = () => {
-		onTimeChange(timeRange.start);
+		if (commits.length > 0) {
+			// Jump to the first commit's exact time
+			onTimeChange(commits[0].date.getTime());
+		}
 	};
 
 	const handleSkipToEnd = () => {
-		onTimeChange(timeRange.end);
+		if (hasMoreCommits && onLoadMore) {
+			// More commits are available - trigger loading before skipping to end
+			onLoadMore();
+		}
+		if (commits.length > 0) {
+			// Jump to the last commit's exact time
+			onTimeChange(commits[commits.length - 1].date.getTime());
+		}
 	};
 
 	const currentCommit = commits[currentIndex];
@@ -77,8 +96,8 @@ export function TimelineScrubber({
 				{/* Commit info */}
 				<CommitInfo
 					commit={currentCommit}
-					currentTime={currentTime}
 					isPlaying={isPlaying}
+					currentTime={currentTime}
 				/>
 
 				{/* Video-style controls */}
@@ -97,6 +116,8 @@ export function TimelineScrubber({
 						onNext={handleNext}
 						onSkipToEnd={handleSkipToEnd}
 						onResetView={onResetView}
+						hasMoreCommits={hasMoreCommits}
+						backgroundLoading={backgroundLoading}
 					/>
 
 					{/* Slider with PR markers */}

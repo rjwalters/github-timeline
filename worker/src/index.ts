@@ -14,6 +14,7 @@ import {
 	getCachedCommits,
 	fetchAndCacheCommits,
 	updateCommitData,
+	fetchOlderCommits,
 } from "./db/operations";
 import { fetchMergedPRs } from "./api/github";
 import { handleCacheStatusRequest } from "./handlers/cache";
@@ -104,6 +105,79 @@ export default {
 				Number.parseInt(prNumber),
 				corsHeaders,
 			);
+		}
+
+		// API endpoint: /api/repo/:owner/:repo/fetch-more (fetch more commits on-demand)
+		const fetchMoreMatch = url.pathname.match(
+			/^\/api\/repo\/([^/]+)\/([^/]+)\/fetch-more$/,
+		);
+		if (fetchMoreMatch) {
+			const [, owner, repo] = fetchMoreMatch;
+			const fullName = `${owner}/${repo}`;
+
+			try {
+				console.log(`User-triggered fetch for ${fullName}`);
+
+				// Fetch more commits synchronously and return them
+				const result = await fetchOlderCommits(
+					env.DB,
+					tokenRotator.getNextToken(),
+					owner,
+					repo,
+					40, // Batch size
+				);
+
+				console.log(
+					`Fetched ${result.fetchedCount} commits for ${fullName}: ${result.totalCached}/${result.totalAvailable}`,
+				);
+
+				// Get the newly fetched commits from cache
+				const cached = await getCachedCommits(env.DB, fullName);
+
+				if (!cached) {
+					return new Response(
+						JSON.stringify({ error: "Failed to load commits after fetch" }),
+						{
+							status: 500,
+							headers: { ...corsHeaders, "Content-Type": "application/json" },
+						},
+					);
+				}
+
+				// Return only the newly fetched commits (last N commits)
+				const newCommits = cached.commits.slice(-result.fetchedCount);
+
+				return new Response(
+					JSON.stringify({
+						commits: newCommits,
+						fetchedCount: result.fetchedCount,
+						totalCached: result.totalCached,
+						totalAvailable: result.totalAvailable,
+						hasMore: result.hasMore,
+					}),
+					{
+						headers: {
+							...corsHeaders,
+							"Content-Type": "application/json",
+							"X-Fetched-Count": result.fetchedCount.toString(),
+							"X-Total-Cached": result.totalCached.toString(),
+							"X-Total-Available": result.totalAvailable.toString(),
+							"X-Has-More": result.hasMore.toString(),
+						},
+					},
+				);
+			} catch (error) {
+				console.error(`Error fetching more commits for ${fullName}:`, error);
+				return new Response(
+					JSON.stringify({
+						error: error instanceof Error ? error.message : "Failed to fetch more commits",
+					}),
+					{
+						status: 500,
+						headers: { ...corsHeaders, "Content-Type": "application/json" },
+					},
+				);
+			}
 		}
 
 		// API endpoint: /api/repo/:owner/:repo (full data with commits and files)

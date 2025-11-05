@@ -74,11 +74,13 @@ export class GitService {
 		// Apply size change calculations
 		const calculatedCommits = this.calculateSizeChanges(result.commits);
 
-		// Update cache with all commits
-		const cacheKey = this.getCacheKey();
-		const existingCached = StorageService.loadCommits(cacheKey) || [];
-		const allCommits = [...existingCached, ...calculatedCommits];
-		StorageService.saveCommits(cacheKey, allCommits);
+		// Save to IndexedDB only if not using worker (worker uses D1)
+		if (!this.workerUrl) {
+			const cacheKey = this.getCacheKey();
+			const existingCached = (await StorageService.loadCommits(cacheKey)) || [];
+			const allCommits = [...existingCached, ...calculatedCommits];
+			await StorageService.saveCommits(cacheKey, allCommits);
+		}
 
 		return {
 			...result,
@@ -154,7 +156,7 @@ export class GitService {
 
 		// Try to load from cache first
 		if (!forceRefresh) {
-			const cached = StorageService.loadCommits(cacheKey);
+			const cached = await StorageService.loadCommits(cacheKey);
 			if (cached) {
 				return { commits: cached };
 			}
@@ -163,13 +165,15 @@ export class GitService {
 		// Fetch fresh data
 		try {
 			const result = await this.fetchCommitsWithProgress(onProgress, onCommit);
-			// Save to cache
-			StorageService.saveCommits(cacheKey, result.commits);
+			// Save to IndexedDB only if not using worker (worker uses D1)
+			if (!this.workerUrl) {
+				await StorageService.saveCommits(cacheKey, result.commits);
+			}
 			return result;
 		} catch (error) {
 			console.error("Error fetching commits:", error);
 			// Try cache as fallback
-			const cached = StorageService.loadCommits(cacheKey);
+			const cached = await StorageService.loadCommits(cacheKey);
 			if (cached) {
 				return { commits: cached };
 			}
@@ -207,18 +211,16 @@ export class GitService {
 							}
 						: undefined,
 					onProgress,
-					(partialCommits) => {
-						// Save to cache incrementally
-						const calculated = this.calculateSizeChanges(partialCommits);
-						StorageService.saveCommits(cacheKey, calculated);
-					},
+					// Save incrementally to IndexedDB only if not using worker
+					!this.workerUrl
+						? async (partialCommits) => {
+								const calculated = this.calculateSizeChanges(partialCommits);
+								await StorageService.saveCommits(cacheKey, calculated);
+							}
+						: undefined,
 				);
 
-				console.log("[AUTOLOAD] GitService initial load result:", {
-					commits: result.commits.length,
-					hasMore: result.hasMore,
-					totalCount: result.totalCount,
-				});
+				// Initial load complete
 
 				return {
 					commits: this.calculateSizeChanges(result.commits),
@@ -296,14 +298,14 @@ export class GitService {
 	/**
 	 * Clear cache for this repository
 	 */
-	clearCache(): void {
-		StorageService.clearCache(this.getCacheKey());
+	async clearCache(): Promise<void> {
+		return StorageService.clearCache(this.getCacheKey());
 	}
 
 	/**
 	 * Get cache information
 	 */
-	getCacheInfo() {
+	async getCacheInfo() {
 		return StorageService.getCacheInfo(this.getCacheKey());
 	}
 

@@ -26,6 +26,8 @@ interface PlaybackControlsProps {
 	onNext: () => void;
 	onSkipToEnd: () => void;
 	onResetView?: () => void;
+	hasMoreCommits?: boolean;
+	backgroundLoading?: boolean;
 }
 
 export const PlaybackControls = memo(function PlaybackControls({
@@ -42,6 +44,8 @@ export const PlaybackControls = memo(function PlaybackControls({
 	onNext,
 	onSkipToEnd,
 	onResetView,
+	hasMoreCommits = false,
+	backgroundLoading = false,
 }: PlaybackControlsProps) {
 	const cycleSpeed = () => {
 		const speeds: PlaybackSpeed[] = [1, 60, 300, 1800];
@@ -53,6 +57,10 @@ export const PlaybackControls = memo(function PlaybackControls({
 	const toggleDirection = () => {
 		onDirectionChange(playbackDirection === "forward" ? "reverse" : "forward");
 	};
+
+	// Determine if we're truly at the end (no more commits available)
+	const isAtLastCommit = currentIndex === totalCommits - 1;
+	const isAtEnd = isAtLastCommit && !hasMoreCommits;
 
 	const speedButtonClass =
 		"px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors text-sm font-mono";
@@ -114,9 +122,15 @@ export const PlaybackControls = memo(function PlaybackControls({
 			{/* Next */}
 			<button
 				onClick={onNext}
-				disabled={currentIndex === totalCommits - 1}
+				disabled={isAtEnd || backgroundLoading}
 				className={iconButtonClass}
-				title="Next commit"
+				title={
+					backgroundLoading
+						? "Loading more commits..."
+						: isAtLastCommit && hasMoreCommits
+							? "Next commit (loading more...)"
+							: "Next commit"
+				}
 			>
 				<SkipForward size={18} />
 			</button>
@@ -124,9 +138,15 @@ export const PlaybackControls = memo(function PlaybackControls({
 			{/* Skip to end */}
 			<button
 				onClick={onSkipToEnd}
-				disabled={currentIndex === totalCommits - 1}
+				disabled={isAtEnd || backgroundLoading}
 				className={iconButtonClass}
-				title="Skip to last commit"
+				title={
+					backgroundLoading
+						? "Loading more commits..."
+						: isAtLastCommit && hasMoreCommits
+							? "Skip to last commit (loading more...)"
+							: "Skip to last commit"
+				}
 			>
 				<ChevronsRight size={18} />
 			</button>

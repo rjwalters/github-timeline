@@ -56,7 +56,10 @@ interface RepoDataState {
 type RepoDataAction =
 	| { type: "SET_COMMITS"; commits: CommitData[] }
 	| { type: "ADD_COMMIT"; commit: CommitData }
-	| { type: "SET_CURRENT_TIME"; time: number }
+	| {
+			type: "SET_CURRENT_TIME";
+			time: number | ((prevTime: number) => number);
+	  }
 	| { type: "SET_TIME_RANGE"; range: { start: number; end: number } }
 	| { type: "SET_TOTAL_PRS"; count: number }
 	| { type: "SET_LOADING"; loading: boolean }
@@ -86,21 +89,30 @@ function repoDataReducer(
 		case "SET_COMMITS": {
 			// When setting commits in bulk (e.g., from cache), update time range
 			if (action.commits.length > 0) {
-				const times = action.commits.map((c) => c.date.getTime());
+				// Sort commits chronologically (oldest first) to ensure consistent ordering
+				const sortedCommits = [...action.commits].sort((a, b) =>
+					a.date.getTime() - b.date.getTime()
+				);
+
+				const times = sortedCommits.map((c) => c.date.getTime());
 				const newTimeRange = {
 					start: Math.min(...times),
 					end: Math.max(...times),
 				};
 				// Always reset to start when commits load to ensure scrubber starts at beginning
-				const newCurrentTime = newTimeRange.start;
+				// Set to first commit's exact time to ensure getCurrentIndex returns 0
+				const newCurrentTime = sortedCommits[0].date.getTime();
 				return {
 					...state,
-					commits: action.commits,
+					commits: sortedCommits,
 					timeRange: newTimeRange,
 					currentTime: newCurrentTime,
 				};
 			}
-			return { ...state, commits: action.commits };
+			return {
+				...state,
+				commits: action.commits,
+			};
 		}
 		case "ADD_COMMIT": {
 			const newCommits = [...state.commits, action.commit];
@@ -126,8 +138,13 @@ function repoDataReducer(
 				currentTime: newCurrentTime,
 			};
 		}
-		case "SET_CURRENT_TIME":
-			return { ...state, currentTime: action.time };
+		case "SET_CURRENT_TIME": {
+			const newTime =
+				typeof action.time === "function"
+					? action.time(state.currentTime)
+					: action.time;
+			return { ...state, currentTime: newTime };
+		}
 		case "SET_TIME_RANGE":
 			return { ...state, timeRange: action.range };
 		case "SET_TOTAL_PRS":
@@ -163,16 +180,21 @@ function repoDataReducer(
 				totalCommitsAvailable: action.totalAvailable,
 			};
 		case "APPEND_COMMITS": {
-			const newCommits = [...state.commits, ...action.commits];
+			// Merge and sort all commits chronologically
+			const allCommits = [...state.commits, ...action.commits];
+			const sortedCommits = allCommits.sort((a, b) =>
+				a.date.getTime() - b.date.getTime()
+			);
+
 			// Update time range if needed
-			const times = action.commits.map((c) => c.date.getTime());
+			const times = sortedCommits.map((c) => c.date.getTime());
 			const newTimeRange = {
-				start: Math.min(state.timeRange.start, ...times),
-				end: Math.max(state.timeRange.end, ...times),
+				start: Math.min(...times),
+				end: Math.max(...times),
 			};
 			return {
 				...state,
-				commits: newCommits,
+				commits: sortedCommits,
 				timeRange: newTimeRange,
 			};
 		}
@@ -270,8 +292,9 @@ export function useRepoData({
 				const metadata = await gitService.getMetadata();
 
 				dispatch({ type: "SET_TOTAL_PRS", count: metadata.prs.length });
-				dispatch({ type: "SET_TIME_RANGE", range: metadata.timeRange });
-				dispatch({ type: "SET_CURRENT_TIME", time: metadata.timeRange.start });
+				// Don't set time range or current time from metadata
+				// The metadata endpoint returns newest commits, but we load oldest commits
+				// Let SET_COMMITS or ADD_COMMIT handle setting the initial time
 			} catch (err) {
 				console.error("[Stage 2] Error loading metadata:", err);
 				// Don't block - continue to load commits
@@ -291,7 +314,7 @@ export function useRepoData({
 			gitServiceRef.current = gitService;
 
 			// Check if data was from cache
-			const cacheInfo = gitService.getCacheInfo();
+			const cacheInfo = await gitService.getCacheInfo();
 			const hasCache = cacheInfo.exists && !forceRefresh;
 
 			if (hasCache) {
@@ -303,13 +326,12 @@ export function useRepoData({
 						dispatch({ type: "SET_LOAD_PROGRESS", progress });
 					}, forceRefresh);
 
-					console.log("[AUTOLOAD] useRepoData received initial result:", {
-						commits: result.commits.length,
-						hasMore: result.hasMore,
-						totalCount: result.totalCount,
-					});
+					// Initial load complete - pagination info set
 
-					dispatch({ type: "SET_COMMITS", commits: result.commits });
+					dispatch({
+						type: "SET_COMMITS",
+						commits: result.commits,
+					});
 					if (result.hasMore !== undefined && result.totalCount !== undefined) {
 						dispatch({
 							type: "SET_PAGINATION",
@@ -431,20 +453,10 @@ export function useRepoData({
 	}, [loadCommits]);
 
 	const loadMore = useCallback(async () => {
-		console.log("[AUTOLOAD] loadMore() called", {
-			hasGitService: !!gitServiceRef.current,
-			backgroundLoading: state.backgroundLoading,
-			commitsLength: state.commits.length,
-		});
-
 		if (!gitServiceRef.current || state.backgroundLoading) {
-			console.log(
-				"[AUTOLOAD] loadMore() skipped - no service or already loading",
-			);
 			return;
 		}
 
-		console.log("[AUTOLOAD] Starting background load...");
 		dispatch({ type: "SET_BACKGROUND_LOADING", loading: true });
 
 		try {
@@ -457,28 +469,17 @@ export function useRepoData({
 				}
 			}
 
-			console.log(
-				"[AUTOLOAD] Calling gitService.loadMoreCommits with offset:",
-				state.commits.length,
-			);
 			const result = await gitServiceRef.current.loadMoreCommits(
 				state.commits.length,
 				40,
 				existingFiles,
 				(commit) => {
-					console.log("[AUTOLOAD] Received commit:", commit.hash);
 					dispatch({ type: "APPEND_COMMITS", commits: [commit] });
 				},
 				(progress) => {
 					dispatch({ type: "SET_LOAD_PROGRESS", progress });
 				},
 			);
-
-			console.log("[AUTOLOAD] Load complete:", {
-				newCommits: result.commits.length,
-				hasMore: result.hasMore,
-				totalCount: result.totalCount,
-			});
 
 			dispatch({
 				type: "SET_PAGINATION",
@@ -495,21 +496,20 @@ export function useRepoData({
 		}
 	}, [state.commits, state.backgroundLoading]);
 
+	const setCurrentTime = useCallback(
+		(timeOrUpdater: number | ((prevTime: number) => number)) => {
+			dispatch({
+				type: "SET_CURRENT_TIME",
+				time: timeOrUpdater,
+			});
+		},
+		[],
+	);
+
 	return {
 		...state,
 		loadCommits,
 		loadMore,
-		setCurrentTime: (
-			timeOrUpdater: number | ((prevTime: number) => number),
-		) => {
-			if (typeof timeOrUpdater === "function") {
-				dispatch({
-					type: "SET_CURRENT_TIME",
-					time: timeOrUpdater(state.currentTime),
-				});
-			} else {
-				dispatch({ type: "SET_CURRENT_TIME", time: timeOrUpdater });
-			}
-		},
+		setCurrentTime,
 	};
 }

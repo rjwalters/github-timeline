@@ -3,14 +3,14 @@ import type { CommitData } from "../../types";
 
 interface CommitInfoProps {
 	commit: CommitData;
-	currentTime: number;
 	isPlaying: boolean;
+	currentTime?: number;
 }
 
 export const CommitInfo = memo(function CommitInfo({
 	commit,
-	currentTime,
 	isPlaying,
+	currentTime,
 }: CommitInfoProps) {
 	return (
 		<div className="mb-3">
@@ -21,8 +21,8 @@ export const CommitInfo = memo(function CommitInfo({
 						{commit.author} • {commit.date.toLocaleDateString()}
 					</div>
 				</div>
-				{/* Date/Time Clock - shows current time in timeline */}
-				{isPlaying && (
+				{/* Date/Time Clock - shows current scrubbed time */}
+				{isPlaying && currentTime && (
 					<div className="text-lg font-mono text-blue-400 tabular-nums">
 						{new Date(currentTime).toLocaleDateString("en-US", {
 							month: "short",

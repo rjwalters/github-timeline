@@ -292,12 +292,12 @@ export class GitHubApiService {
 	}
 
 	/**
-	 * Load additional commits from worker with pagination
+	 * Load additional commits from worker (on-demand fetch)
 	 * Returns processed commits and pagination info
 	 */
 	async loadMoreCommits(
-		offset: number,
-		limit = 40,
+		_offset: number,
+		_limit = 40,
 		existingFiles: Map<string, number> = new Map(),
 		onCommit?: (commit: CommitData) => void,
 		onProgress?: (progress: LoadProgress) => void,
@@ -315,11 +315,12 @@ export class GitHubApiService {
 				loaded: 0,
 				total: -1,
 				percentage: 0,
-				message: `Fetching commits ${offset}-${offset + limit}...`,
+				message: `Fetching more commits from GitHub...`,
 			});
 		}
 
-		const workerResponse = await this.fetchCommitsFromWorker(offset, limit);
+		// Use the fetch-more endpoint to trigger on-demand fetching
+		const workerResponse = await this.workerService!.fetchMoreCommits();
 
 		if (onProgress) {
 			onProgress({
@@ -392,7 +393,7 @@ export class GitHubApiService {
 		return {
 			commits,
 			hasMore: workerResponse.hasMore,
-			totalCount: workerResponse.totalCount,
+			totalCount: workerResponse.totalCached,
 		};
 	}
 
@@ -415,26 +416,22 @@ export class GitHubApiService {
 				onProgress({
 					loaded: 0,
 					total: -1,
-					percentage: 0,
-					message: "Fetching data from cache...",
+					percentage: 10,
+					message: "Fetching repository data...",
 				});
 			}
 
-			// Worker now returns commits directly, not PRs
-			const workerResponse = await this.fetchCommitsFromWorker();
+			// Worker returns commits in chronological order (oldest first)
+			const workerResponse = await this.fetchCommitsFromWorker(0, 40);
 
-			console.log("[AUTOLOAD] Initial fetch response:", {
-				commits: workerResponse.commits.length,
-				totalCount: workerResponse.totalCount,
-				hasMore: workerResponse.hasMore,
-			});
+			// Initial fetch complete
 
 			if (onProgress) {
 				onProgress({
 					loaded: workerResponse.commits.length,
 					total: workerResponse.totalCount,
 					percentage: 50,
-					message: `Loaded ${workerResponse.commits.length} commits from cache`,
+					message: `Loaded ${workerResponse.commits.length} cached commits`,
 				});
 			}
 

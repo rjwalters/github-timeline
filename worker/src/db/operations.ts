@@ -560,8 +560,13 @@ export async function fetchAndCacheCommits(
 	const totalCommitCount = await fetchCommitCount(token, owner, repo, defaultBranch);
 	console.log(`Total commits in repo: ${totalCommitCount}`);
 
-	// Fetch commits from default branch
-	// Limit pages to avoid fetching too many commits
+	// Fetch commits from default branch - start from the LAST page to get oldest commits
+	// GitHub API returns commits in reverse chronological order (newest first)
+	// So the last page contains the oldest commits
+	const lastPage = Math.ceil(totalCommitCount / 100);
+
+	console.log(`Fetching oldest commits from page ${lastPage} (last page)`);
+
 	const commitList = await fetchCommits(
 		token,
 		owner,
@@ -569,11 +574,15 @@ export async function fetchAndCacheCommits(
 		defaultBranch,
 		undefined,
 		1, // Fetch only 1 page (100 commits) initially
+		lastPage, // Start from last page to get oldest commits
 	);
 
 	if (commitList.length === 0) {
 		return { commits: [], totalCommitsAvailable: totalCommitCount };
 	}
+
+	// Since GitHub returns newest first on each page, reverse to get oldest first
+	commitList.reverse();
 
 	// Limit to prevent too many API calls - Cloudflare Workers has 50 subrequest limit
 	// We need: 1 for repo info, 1 for commit count, 1 for commit list, N for commit details
@@ -671,5 +680,111 @@ export async function updateCommitData(
 		}
 	} catch (error) {
 		console.error("Error in background commit update:", error);
+	}
+}
+
+/**
+ * Fetch older commits progressively to build up the cache
+ * This is meant to be called by scheduled workers or manual fetch endpoints
+ */
+export async function fetchOlderCommits(
+	db: D1Database,
+	token: string,
+	owner: string,
+	repo: string,
+	batchSize = 40,
+): Promise<{
+	fetchedCount: number;
+	hasMore: boolean;
+	totalCached: number;
+	totalAvailable: number;
+}> {
+	const fullName = `${owner}/${repo}`;
+
+	try {
+		// Get current cache status
+		const cached = await getCachedCommits(db, fullName);
+
+		if (!cached) {
+			console.log(`No cache found for ${fullName}, use fetchAndCacheCommits first`);
+			return { fetchedCount: 0, hasMore: false, totalCached: 0, totalAvailable: 0 };
+		}
+
+		const cachedCount = cached.commits.length;
+		const totalAvailable = cached.totalCommitsAvailable;
+
+		// If we've cached everything, we're done
+		if (cachedCount >= totalAvailable) {
+			console.log(`All ${totalAvailable} commits already cached for ${fullName}`);
+			return { fetchedCount: 0, hasMore: false, totalCached: cachedCount, totalAvailable };
+		}
+
+		console.log(`Fetching older commits for ${fullName}: ${cachedCount}/${totalAvailable} cached`);
+
+		// Calculate which page contains the older commits we need
+		// GitHub returns commits in reverse chronological order (newest first)
+		// If we have 80 commits cached (the 80 most recent), and we want the next 40 older ones:
+		// - Total commits: 21,140
+		// - We have commits at positions 1-80 (newest)
+		// - We need commits at positions 81-120 (next oldest)
+		// - In GitHub's reverse order, position 81 is at index (21,140 - 81) = 21,059 (0-indexed: 21,059)
+		// - Page = ceil((21,140 - 80) / 100) = ceil(21,060 / 100) = page 211
+
+		const remainingCommits = totalAvailable - cachedCount;
+		const pageToFetch = Math.ceil(remainingCommits / 100);
+
+		console.log(`Fetching page ${pageToFetch} to get older commits (${remainingCommits} remaining)`);
+
+		// Fetch commits from the calculated page
+		const commitList = await fetchCommits(
+			token,
+			owner,
+			repo,
+			cached.defaultBranch,
+			undefined,
+			1, // Fetch 1 page (100 commits)
+			pageToFetch, // Start from the calculated page
+		);
+
+		// Since GitHub returns newest first, we need to reverse to get oldest first
+		commitList.reverse();
+
+		// Take the oldest commits from this page (up to batchSize)
+		const commitsToProcess = commitList.slice(0, batchSize);
+		const commits: Commit[] = [];
+
+		if (commitsToProcess.length === 0) {
+			console.log(`No older commits found for ${fullName}`);
+			return { fetchedCount: 0, hasMore: false, totalCached: cachedCount, totalAvailable };
+		}
+
+		// Fetch file details for each commit
+		for (const commitMeta of commitsToProcess) {
+			const commitDetails = await fetchCommitFiles(
+				token,
+				owner,
+				repo,
+				commitMeta.sha,
+			);
+			commits.push(commitDetails);
+		}
+
+		// Store the new commits
+		await storeCommitData(db, owner, repo, cached.defaultBranch, commits, totalAvailable, true);
+
+		const newTotal = cachedCount + commits.length;
+		const hasMore = newTotal < totalAvailable;
+
+		console.log(`Fetched ${commits.length} older commits for ${fullName}: ${newTotal}/${totalAvailable}`);
+
+		return {
+			fetchedCount: commits.length,
+			hasMore,
+			totalCached: newTotal,
+			totalAvailable,
+		};
+	} catch (error) {
+		console.error("Error fetching older commits:", error);
+		throw error;
 	}
 }

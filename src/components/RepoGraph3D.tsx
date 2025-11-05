@@ -12,6 +12,7 @@ import { FileEdge, FileNode } from "../types";
 import { ForceSimulation } from "../utils/forceSimulation";
 import { FileEdge3D } from "./FileEdge3D";
 import { FileNode3D } from "./FileNode3D";
+import { PerformanceStatsOverlay } from "./PerformanceStats";
 
 interface RepoGraph3DProps {
 	nodes: FileNode[];
@@ -232,47 +233,55 @@ export const RepoGraph3D = forwardRef<RepoGraph3DHandle, RepoGraph3DProps>(
 		}
 
 		return (
-			<Canvas
-				ref={(canvas) => {
-					if (canvas) {
-						canvasRef.current = canvas as unknown as HTMLCanvasElement;
-					}
-				}}
-				camera={{ position: [0, 0, 200], fov: 75 }}
-				style={{ background: "#0f172a" }}
-				gl={{
-					powerPreference: "high-performance",
-					antialias: true,
-					alpha: false,
-					preserveDrawingBuffer: false,
-				}}
-			>
-				<ambientLight intensity={0.5} />
-				<pointLight position={[100, 100, 100]} intensity={1} />
-				<pointLight position={[-100, -100, -100]} intensity={0.5} />
+			<div style={{ position: "relative", width: "100%", height: "100%" }}>
+				<Canvas
+					ref={(canvas) => {
+						if (canvas) {
+							canvasRef.current = canvas as unknown as HTMLCanvasElement;
+						}
+					}}
+					camera={{ position: [0, 0, 200], fov: 75 }}
+					style={{ background: "#0f172a" }}
+					gl={{
+						powerPreference: "high-performance",
+						antialias: true,
+						alpha: false,
+						preserveDrawingBuffer: false,
+					}}
+				>
+					<ambientLight intensity={0.5} />
+					<pointLight position={[100, 100, 100]} intensity={1} />
+					<pointLight position={[-100, -100, -100]} intensity={0.5} />
 
-				{/* Render edges first so they appear behind nodes */}
-				{edges.map((edge, i) => {
-					const source = nodeMap.get(edge.source);
-					const target = nodeMap.get(edge.target);
-					// Include node positions in key to force re-render when positions change
-					const key = `edge-${i}-${source?.x?.toFixed(1) ?? 0}-${source?.y?.toFixed(1) ?? 0}-${target?.x?.toFixed(1) ?? 0}-${target?.y?.toFixed(1) ?? 0}`;
-					return <FileEdge3D key={key} edge={edge} nodes={nodeMap} />;
-				})}
+					{/* Render edges first so they appear behind nodes */}
+					{edges.map((edge, i) => {
+						const source = nodeMap.get(edge.source);
+						const target = nodeMap.get(edge.target);
+						// Include node positions in key to force re-render when positions change
+						const key = `edge-${i}-${source?.x?.toFixed(1) ?? 0}-${source?.y?.toFixed(1) ?? 0}-${target?.x?.toFixed(1) ?? 0}-${target?.y?.toFixed(1) ?? 0}`;
+						return <FileEdge3D key={key} edge={edge} nodes={nodeMap} />;
+					})}
 
-				{/* Render nodes */}
-				{simulationNodes.map((node) => (
-					<FileNode3D key={node.id} node={node} onClick={onNodeClick} />
-				))}
+					{/* Render nodes */}
+					{simulationNodes.map((node) => (
+						<FileNode3D key={node.id} node={node} onClick={onNodeClick} />
+					))}
 
-				<OrbitControls
-					ref={orbitControlsRef}
-					enableDamping
-					dampingFactor={0.05}
-					rotateSpeed={0.5}
-					zoomSpeed={0.5}
+					<OrbitControls
+						ref={orbitControlsRef}
+						enableDamping
+						dampingFactor={0.05}
+						rotateSpeed={0.5}
+						zoomSpeed={0.5}
+					/>
+				</Canvas>
+
+				{/* Performance stats overlay */}
+				<PerformanceStatsOverlay
+					nodeCount={simulationNodes.length}
+					edgeCount={edges.length}
 				/>
-			</Canvas>
+			</div>
 		);
 	},
 );

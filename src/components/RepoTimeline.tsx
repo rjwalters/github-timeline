@@ -78,6 +78,15 @@ export function RepoTimeline({
 
 	const currentIndex = getCurrentIndex(commits, currentTime);
 
+	// Debug: Log when commit index changes during playback
+	useEffect(() => {
+		if (isPlaying && commits[currentIndex]) {
+			console.log(
+				`[UI] Commit index: ${currentIndex + 1}/${commits.length}, time: ${commits[currentIndex].date.toISOString()}`,
+			);
+		}
+	}, [currentIndex, isPlaying, commits]);
+
 	// Use playback timer hook for automatic time advancement
 	usePlaybackTimer({
 		isPlaying,
@@ -91,20 +100,7 @@ export function RepoTimeline({
 
 	// Autoload more commits when approaching the end
 	useEffect(() => {
-		console.log("[AUTOLOAD] Check:", {
-			hasMoreCommits,
-			backgroundLoading,
-			commitsCount: commits.length,
-			currentTime,
-			timeRange,
-		});
-
 		if (!hasMoreCommits || backgroundLoading || commits.length === 0) {
-			console.log("[AUTOLOAD] Skip - conditions not met:", {
-				hasMoreCommits,
-				backgroundLoading,
-				hasCommits: commits.length > 0,
-			});
 			return;
 		}
 
@@ -113,18 +109,10 @@ export function RepoTimeline({
 		const elapsed = currentTime - timeRange.start;
 		const progress = elapsed / totalTime;
 
-		console.log("[AUTOLOAD] Progress:", {
-			progress: `${Math.round(progress * 100)}%`,
-			currentTime,
-			timeRange,
-			elapsed,
-			totalTime,
-		});
-
 		// Trigger loading when we're at 80% through the loaded commits
 		if (progress > 0.8) {
 			console.log(
-				"[AUTOLOAD] 🚀 Triggering loadMore() - at",
+				"[AUTOLOAD] Triggering loadMore() at",
 				`${Math.round(progress * 100)}%`,
 			);
 			loadMore();
@@ -256,6 +244,9 @@ export function RepoTimeline({
 						playbackDirection={playbackDirection}
 						onDirectionChange={setPlaybackDirection}
 						onResetView={handleResetView}
+						hasMoreCommits={hasMoreCommits}
+						backgroundLoading={backgroundLoading}
+						onLoadMore={loadMore}
 					/>
 				</div>
 			)}

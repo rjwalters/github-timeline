@@ -134,7 +134,41 @@ export class WorkerApiService {
 	}
 
 	/**
+	 * Trigger on-demand fetch of more commits
+	 * This fetches the next batch of commits from GitHub and adds them to the cache
+	 */
+	async fetchMoreCommits(): Promise<{
+		commits: GitHubWorkerCommit[];
+		fetchedCount: number;
+		totalCached: number;
+		totalAvailable: number;
+		hasMore: boolean;
+	}> {
+		const url = `${this.workerUrl}/api/repo/${this.owner}/${this.repo}/fetch-more`;
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			const error = await response
+				.json()
+				.catch(() => ({ error: "Unknown error" }));
+			throw new Error(
+				error.error || `Fetch-more request failed: ${response.status}`,
+			);
+		}
+
+		const data = await response.json();
+		return {
+			commits: data.commits || [],
+			fetchedCount: data.fetchedCount || 0,
+			totalCached: data.totalCached || 0,
+			totalAvailable: data.totalAvailable || 0,
+			hasMore: data.hasMore || false,
+		};
+	}
+
+	/**
 	 * Fetch commit data from Cloudflare Worker with pagination
+	 * Returns commits in chronological order (oldest first)
 	 */
 	async fetchCommits(
 		offset = 0,

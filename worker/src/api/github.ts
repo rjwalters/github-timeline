@@ -106,14 +106,15 @@ export async function fetchCommits(
 	branch: string,
 	sinceCommit?: string,
 	maxPages: number = 10,
+	startPage: number = 1,
 ): Promise<any[]> {
 	const allCommits: any[] = [];
-	let page = 1;
+	let page = startPage;
 	const perPage = 100;
 
-	console.log(`Fetching commits from ${owner}/${repo}@${branch}`);
+	console.log(`Fetching commits from ${owner}/${repo}@${branch} starting at page ${startPage}`);
 
-	while (page <= maxPages) {
+	while (page < startPage + maxPages) {
 		const url = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=${perPage}&page=${page}`;
 
 		const response = await fetch(url, {
