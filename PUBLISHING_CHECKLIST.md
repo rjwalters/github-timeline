@@ -1,4 +1,4 @@
-# Publishing Checklist for v1.0.0
+# Publishing Checklist for v0.1.0
 
 ## Current Status
 
@@ -12,7 +12,7 @@
 - GitHub Pages deployed at https://rjwalters.github.io/github-timeline/
 - Git remote URL updated to new repo
 - LICENSE file (MIT) created
-- CHANGELOG.md finalized for v1.0.0
+- CHANGELOG.md finalized for v0.1.0
 
 ⚠️ **Pending:**
 - Local directory still named `/Users/rwalters/GitHub/repo-timeline` (needs manual rename + Claude Code restart)
@@ -29,7 +29,7 @@ cd /Users/rwalters/GitHub/repo-timeline
 
 # Create local tarball
 pnpm pack
-# This creates: react-github-timeline-1.0.0.tgz
+# This creates: react-github-timeline-0.1.0.tgz
 
 # Test in a temporary directory
 cd /tmp
@@ -38,7 +38,7 @@ cd test-react-github-timeline
 
 # Create a minimal test project
 npm init -y
-npm install /Users/rwalters/GitHub/repo-timeline/react-github-timeline-1.0.0.tgz
+npm install /Users/rwalters/GitHub/repo-timeline/react-github-timeline-0.1.0.tgz
 npm install react@^18.0.0 react-dom@^18.0.0 three@^0.160.0 @react-three/fiber@^8.0.0 @react-three/drei@^9.0.0
 
 # Create test file: test.mjs
@@ -153,19 +153,19 @@ Add this badge after publishing:
 cd /Users/rwalters/GitHub/github-timeline
 
 # Create and push git tag
-git tag v1.0.0
-git push origin v1.0.0
+git tag v0.1.0
+git push origin v0.1.0
 
 # Create GitHub release using gh CLI
-gh release create v1.0.0 \
-  --title "v1.0.0 - Initial Release" \
-  --notes "$(cat CHANGELOG.md | sed -n '/## \[1.0.0\]/,/## \[/p' | sed '$d')"
+gh release create v0.1.0 \
+  --title "v0.1.0 - Initial Development Release" \
+  --notes "$(cat CHANGELOG.md | sed -n '/## \[0.1.0\]/,/## \[/p' | sed '$d')"
 ```
 
 ## Package Details
 
 **Package Name:** `react-github-timeline`
-**Version:** 1.0.0
+**Version:** 0.1.0
 **Registry:** https://www.npmjs.com/
 **Repository:** https://github.com/rjwalters/github-timeline
 **Demo:** https://rjwalters.github.io/github-timeline/
@@ -190,9 +190,9 @@ npm login
 The package name might already be taken. Check https://www.npmjs.com/package/react-github-timeline
 
 ### "EPUBLISHCONFLICT: Cannot publish over existing version"
-The version 1.0.0 is already published. Either:
-- Use `npm version patch` to bump to 1.0.1
-- Or unpublish first (only if < 72 hours): `npm unpublish react-github-timeline@1.0.0`
+The version 0.1.0 is already published. Either:
+- Use `npm version patch` to bump to 0.1.1
+- Or unpublish first (only if < 72 hours): `npm unpublish react-github-timeline@0.1.0`
 
 ### Bundle size warnings
 If bundle size is a concern, consider:
@@ -212,7 +212,7 @@ If bundle size is a concern, consider:
 Create a celebration commit! 🎉
 
 ```bash
-git commit --allow-empty -m "🎉 Published v1.0.0 to npm
+git commit --allow-empty -m "🎉 Published v0.1.0 to npm
 
 react-github-timeline is now available at:
 https://www.npmjs.com/package/react-github-timeline
