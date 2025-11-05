@@ -88,7 +88,7 @@ function repoDataReducer(
 	switch (action.type) {
 		case "SET_COMMITS": {
 			// When setting commits in bulk (e.g., from cache), update time range
-			if (action.commits.length > 0) {
+			if (action.commits && action.commits.length > 0) {
 				// Sort commits chronologically (oldest first) to ensure consistent ordering
 				const sortedCommits = [...action.commits].sort((a, b) =>
 					a.date.getTime() - b.date.getTime()
@@ -111,7 +111,7 @@ function repoDataReducer(
 			}
 			return {
 				...state,
-				commits: action.commits,
+				commits: action.commits || [],
 			};
 		}
 		case "ADD_COMMIT": {
