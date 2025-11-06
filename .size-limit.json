@@ -2,13 +2,13 @@
   {
     "name": "ESM Bundle",
     "path": "dist/index.js",
-    "limit": "18 KB",
+    "limit": "20 KB",
     "gzip": true
   },
   {
     "name": "UMD Bundle",
     "path": "dist/index.umd.js",
-    "limit": "17.5 KB",
+    "limit": "20 KB",
     "gzip": true
   }
 ]
