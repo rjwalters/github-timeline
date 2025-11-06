@@ -165,6 +165,137 @@ export async function fetchCommits(
 }
 
 /**
+ * Fetch oldest commits from a repository using GitHub's Link header pagination
+ * This is the ONLY reliable way to get the actual oldest commits from a repository
+ *
+ * Strategy:
+ * 1. Make a HEAD request to page 1 to get the Link header
+ * 2. Parse the "last" page number from the Link header
+ * 3. Fetch that last page directly to get the oldest commits
+ * 4. Return up to maxCommitsToReturn oldest commits in chronological order
+ *
+ * @param maxCommitsToReturn - How many of the oldest commits to return (default: 100)
+ */
+export async function fetchOldestCommits(
+	token: string,
+	owner: string,
+	repo: string,
+	branch: string,
+	maxCommitsToReturn: number = 100,
+): Promise<any[]> {
+	const perPage = 100;
+
+	console.log(`Fetching oldest commits from ${owner}/${repo}@${branch} using Link header`);
+
+	// Step 1: Get the Link header to find the last page number
+	const headUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=${perPage}&page=1`;
+
+	const headResponse = await fetch(headUrl, {
+		method: "HEAD",
+		headers: {
+			Authorization: `Bearer ${token}`,
+			Accept: "application/vnd.github.v3+json",
+			"User-Agent": "Repo-Timeline-Worker",
+		},
+	});
+
+	if (!headResponse.ok) {
+		if (headResponse.status === 404) {
+			throw new Error(`Repository ${owner}/${repo} or branch ${branch} not found`);
+		}
+		if (headResponse.status === 403) {
+			throw new Error("GitHub API rate limit exceeded");
+		}
+		throw new Error(`GitHub API error: ${headResponse.status}`);
+	}
+
+	// Step 2: Parse the Link header to get the last page number
+	const linkHeader = headResponse.headers.get("Link");
+
+	if (!linkHeader) {
+		// No Link header means there's only 1 page total
+		console.log("No Link header found - fetching page 1 (only page)");
+		const response = await fetch(headUrl, {
+			headers: {
+				Authorization: `Bearer ${token}`,
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "Repo-Timeline-Worker",
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`GitHub API error: ${response.status}`);
+		}
+
+		const commits = await response.json();
+		// Reverse to get oldest first
+		const result = [...commits].reverse().slice(0, maxCommitsToReturn);
+		console.log(`Returning ${result.length} oldest commits from single page`);
+		return result;
+	}
+
+	// Parse the "last" link to get the final page number
+	// Example: <https://api.github.com/repositories/123/commits?per_page=100&page=38>; rel="last"
+	const lastLinkMatch = linkHeader.match(/<[^>]+[?&]page=(\d+)[^>]*>;\s*rel="last"/);
+
+	if (!lastLinkMatch) {
+		console.log("No 'last' link found - fetching page 1");
+		// Fallback to page 1
+		const response = await fetch(headUrl, {
+			headers: {
+				Authorization: `Bearer ${token}`,
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "Repo-Timeline-Worker",
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`GitHub API error: ${response.status}`);
+		}
+
+		const commits = await response.json();
+		const result = [...commits].reverse().slice(0, maxCommitsToReturn);
+		console.log(`Returning ${result.length} oldest commits from page 1`);
+		return result;
+	}
+
+	const lastPage = Number.parseInt(lastLinkMatch[1], 10);
+	console.log(`Found last page: ${lastPage}`);
+
+	// Step 3: Fetch the last page to get the oldest commits
+	const lastPageUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=${perPage}&page=${lastPage}`;
+
+	const lastPageResponse = await fetch(lastPageUrl, {
+		headers: {
+			Authorization: `Bearer ${token}`,
+			Accept: "application/vnd.github.v3+json",
+			"User-Agent": "Repo-Timeline-Worker",
+		},
+	});
+
+	if (!lastPageResponse.ok) {
+		throw new Error(`GitHub API error: ${lastPageResponse.status}`);
+	}
+
+	const lastPageCommits: any[] = await lastPageResponse.json();
+
+	if (lastPageCommits.length === 0) {
+		console.log("Last page is empty - returning empty array");
+		return [];
+	}
+
+	// Step 4: The last page contains the oldest commits in reverse chronological order
+	// Reverse them to get chronological order (oldest first)
+	const oldestCommitsReversed = [...lastPageCommits].reverse();
+
+	// Return up to maxCommitsToReturn oldest commits
+	const result = oldestCommitsReversed.slice(0, maxCommitsToReturn);
+
+	console.log(`Returning ${result.length} oldest commits from page ${lastPage}`);
+	return result;
+}
+
+/**
  * Fetch files for a specific commit
  */
 export async function fetchCommitFiles(

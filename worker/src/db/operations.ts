@@ -38,6 +38,12 @@ export async function clearCache(
 		.bind(repo.id)
 		.run();
 
+	// Delete commits (from commits table)
+	await db
+		.prepare("DELETE FROM commits WHERE repo_id = ?")
+		.bind(repo.id)
+		.run();
+
 	// Delete the repo record
 	await db.prepare("DELETE FROM repos WHERE id = ?").bind(repo.id).run();
 
@@ -561,33 +567,25 @@ export async function fetchAndCacheCommits(
 	console.log(`Fetching commits from ${fullName} (${defaultBranch} branch)`);
 
 	// Get accurate total commit count efficiently (only 1 API call)
-	const { fetchCommitCount } = await import("../api/github");
+	const { fetchCommitCount, fetchOldestCommits } = await import("../api/github");
 	const totalCommitCount = await fetchCommitCount(token, owner, repo, defaultBranch);
 	console.log(`Total commits in repo: ${totalCommitCount}`);
 
-	// Fetch commits from default branch - start from the LAST page to get oldest commits
-	// GitHub API returns commits in reverse chronological order (newest first)
-	// So the last page contains the oldest commits
-	const lastPage = Math.ceil(totalCommitCount / 100);
-
-	console.log(`Fetching oldest commits from page ${lastPage} (last page)`);
-
-	const commitList = await fetchCommits(
+	// Fetch oldest commits using GitHub's Link header to find the last page
+	// This reliably gets the actual oldest commits from the repository
+	const commitList = await fetchOldestCommits(
 		token,
 		owner,
 		repo,
 		defaultBranch,
-		undefined,
-		1, // Fetch only 1 page (100 commits) initially
-		lastPage, // Start from last page to get oldest commits
+		100, // Return up to 100 oldest commits
 	);
 
 	if (commitList.length === 0) {
 		return { commits: [], totalCommitsAvailable: totalCommitCount };
 	}
 
-	// Since GitHub returns newest first on each page, reverse to get oldest first
-	commitList.reverse();
+	// commitList is already in chronological order (oldest first) from fetchOldestCommits
 
 	// Limit to prevent too many API calls - Cloudflare Workers has 50 subrequest limit
 	// We need: 1 for repo info, 1 for commit count, 1 for commit list, N for commit details
