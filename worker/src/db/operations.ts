@@ -431,7 +431,7 @@ export async function storeCommitData(
 ): Promise<void> {
 	const fullName = `${owner}/${name}`;
 	const now = Math.floor(Date.now() / 1000);
-	const lastCommitSha = commits.length > 0 ? commits[0].sha : null;
+	const lastCommitSha = commits.length > 0 ? commits[commits.length - 1].sha : null;
 
 	// Insert or update repo first
 	if (isUpdate) {
@@ -672,6 +672,8 @@ export async function updateCommitData(
 
 		if (commits.length > 0) {
 			console.log(`Found ${commits.length} new commits, updating cache`);
+			// Reverse to get oldest-first order (GitHub returns newest-first)
+			commits.reverse();
 			// Update the total commits available with accurate count
 			const { fetchCommitCount } = await import("../api/github");
 			const totalCommitCount = await fetchCommitCount(token, owner, repo, defaultBranch);
