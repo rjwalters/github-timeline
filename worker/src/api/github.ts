@@ -185,7 +185,8 @@ export async function fetchOldestCommits(
 ): Promise<any[]> {
 	const perPage = 100;
 
-	console.log(`Fetching oldest commits from ${owner}/${repo}@${branch} using Link header`);
+	console.log(`[fetchOldestCommits] CALLED for ${owner}/${repo}@${branch} - max: ${maxCommitsToReturn}`);
+	console.log(`[fetchOldestCommits] Using Link header approach`);
 
 	// Step 1: Get the Link header to find the last page number
 	const headUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=${perPage}&page=1`;

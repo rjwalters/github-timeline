@@ -564,14 +564,15 @@ export async function fetchAndCacheCommits(
 	const repoInfo = await fetchRepoInfo(token, owner, repo);
 	const defaultBranch = repoInfo.default_branch;
 
-	console.log(`[NEW CODE] Fetching commits from ${fullName} (${defaultBranch} branch)`);
+	console.log(`[fetchAndCacheCommits] Starting for ${fullName} (${defaultBranch})`);
 
 	// Get accurate total commit count efficiently (only 1 API call)
 	const totalCommitCount = await fetchCommitCount(token, owner, repo, defaultBranch);
-	console.log(`Total commits in repo: ${totalCommitCount}`);
+	console.log(`[fetchAndCacheCommits] Total commits in repo: ${totalCommitCount}`);
 
 	// Fetch oldest commits using GitHub's Link header to find the last page
 	// This reliably gets the actual oldest commits from the repository
+	console.log(`[fetchAndCacheCommits] About to call fetchOldestCommits`);
 	const commitList = await fetchOldestCommits(
 		token,
 		owner,
