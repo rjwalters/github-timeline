@@ -4,7 +4,7 @@
  */
 
 import type { Commit } from "../types";
-import { fetchRepoInfo, fetchCommits, fetchCommitFiles } from "../api/github";
+import { fetchRepoInfo, fetchCommits, fetchCommitFiles, fetchCommitCount, fetchOldestCommits } from "../api/github";
 
 /**
  * Clear cached data for a repository
@@ -564,10 +564,9 @@ export async function fetchAndCacheCommits(
 	const repoInfo = await fetchRepoInfo(token, owner, repo);
 	const defaultBranch = repoInfo.default_branch;
 
-	console.log(`Fetching commits from ${fullName} (${defaultBranch} branch)`);
+	console.log(`[NEW CODE] Fetching commits from ${fullName} (${defaultBranch} branch)`);
 
 	// Get accurate total commit count efficiently (only 1 API call)
-	const { fetchCommitCount, fetchOldestCommits } = await import("../api/github");
 	const totalCommitCount = await fetchCommitCount(token, owner, repo, defaultBranch);
 	console.log(`Total commits in repo: ${totalCommitCount}`);
 

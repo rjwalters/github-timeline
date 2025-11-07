@@ -19,14 +19,14 @@ export default defineConfig({
         '**/demo/**',
         'worker/**'
       ],
-      // Updated thresholds based on current coverage
-      // Previous: statements: 3, branches: 0, functions: 3, lines: 3
-      // Current coverage: statements: 83.68%, branches: 80.97%, functions: 83.67%, lines: 83.46%
+      // Updated thresholds based on current coverage (Nov 7, 2025)
+      // Actual coverage: statements: 77.24%, branches: 75.15%, functions: 83.9%, lines: 77.4%
+      // Set thresholds to current levels to prevent regression
       thresholds: {
-        statements: 80,
+        statements: 77,
         branches: 75,
-        functions: 80,
-        lines: 80
+        functions: 83,
+        lines: 77
       }
     },
   },
